@@ -18,7 +18,7 @@ public class AStarAgent extends Agent {
 
 	class MapLocation implements Comparable<MapLocation> {
         public int x, y;
-        MapLocation cameFrom;
+        MapLocation cameFrom; //the node leading to our current
         float cost; //cost represents the heuristic value
 
         public MapLocation(int x, int y, MapLocation cameFrom, float cost)
@@ -40,9 +40,10 @@ public class AStarAgent extends Agent {
         	return cost;
         }
         
-        @Override 
+        @Override //hash code using bijective theorem
         public int hashCode() {
-        	return 2 * x * x + y * y; 
+        	int tmp = ( y +  ((x+1)/2));
+            return x +  ( tmp * tmp);
         }
         
         @Override
@@ -336,41 +337,34 @@ public class AStarAgent extends Agent {
     private Stack<MapLocation> AstarSearch(State.StateView state, MapLocation start, MapLocation goal, int xExtent, int yExtent, MapLocation enemyFootmanLoc, Set<MapLocation> resourceLocations)
     {
     	path.clear(); //want to empty stack every time Astar is called
-    	int currentposx = start.x - 1; //start at the bottom left of the neighbors
-    	int currentposy = start.y - 1;
     	int nextposx, nextposy; 	//the next coordinates to move to
-    	double eucl_value = 0;		//the current euclidean val
     	//double eucl_prev = Double.POSITIVE_INFINITY;
     	Hashtable<Integer, MapLocation> closed = new Hashtable<Integer, MapLocation>(); //this becomes unnecessary?
     	PriorityQueue<MapLocation> open = new PriorityQueue<MapLocation>(); //tracks any potential nodes
         MapLocation temp = new MapLocation(0, 0, null, 0); //the map location specified by nextpos
-        MapLocation cheapest = new MapLocation(0, 0, null, 0); //the cheapest next step found
-        //closed.put(goal.hashCode(), goal); 
         open.add(start);
-    	//execute until the start coordinates are reached (we work backwards from the goal)
-        //while (!isAdjacent(temp, start)) {
-        while (open.size() != 0) {
-        	MapLocation current = open.poll(); //the current node
-        	if (current.equals(goal)) //if we're at the goal
-        		return tracePath(current); //helper method that traces from goal
+        while (open.size() != 0) { 
+        	MapLocation current = open.poll(); //get the cheapest node
+        	if (current.equals(goal)) //if the goal is found
+        		return tracePath(current); //helper method that traces from goal	
         	closed.putIfAbsent(current.hashCode(), current); //add current to closed list
     		for(int x = -1; x < 2; x++) { //gets all neighbors
             	for(int y= -1; y < 2; y++) { 
             		nextposx = current.x + x; //nextpos is the next coordinate we're going to check
-            		nextposy = current.y + y; 
+            		nextposy = current.y + y;
             		temp = new MapLocation(nextposx, nextposy, current, Float.MAX_VALUE); //set temp to the new coordinate  
             		//skips positions that either don't exist or is current player position. 
             		if (nextposx < xExtent && nextposy < yExtent && !state.isResourceAt(nextposx, 
-            				nextposy) && nextposx >-1 && nextposy >- 1) {       		
-            			//cheb_value = Math.max(Math.abs(temp.x - start.x), Math.abs(temp.y - start.y)); 
-            			eucl_value = Math.sqrt(Math.pow(temp.x - goal.x, 2) + Math.pow(temp.y - goal.y, 2));
+            				nextposy) && nextposx > -1 && nextposy > -1 && !enemyFootmanLoc.equals(temp)) { 
             			temp.cost = (float) calculateEuclidean(temp, goal) + current.cost; //f = g+h
             			//if current has never been visited, or if cheaper than what's already visited
-            			MapLocation hashVal = closed.get(temp.hashCode());
-            			//adds to open list if temp is cheaper than any other paths to temp in closed list
+            			MapLocation hashVal = closed.get(temp.hashCode()); //tries to find temp in hash table
+            			//adds to open list if temp is cheaper than other paths to temp in closed list
             			if (hashVal == null || (temp.equals(hashVal) && temp.cost < hashVal.cost))
             					open.add(temp); 
-            			
+            			}
+            	}
+    		}
             			//cheb_value = Math.max(Math.abs(temp.x - goal.x), Math.abs(temp.y - goal.y));
             			//updates if the euclidean val is smaller
             			/*if (eucl_prev > eucl_value) {
@@ -379,9 +373,7 @@ public class AStarAgent extends Agent {
             				eucl_prev = eucl_value;
             			}*/
             			
-            		}
-            	}
-    		}
+            	
     		//reset posx and posy to the top left 
     		//currentposx = cheapest.x - 1;
     		//currentposy = cheapest.y - 1;
@@ -391,10 +383,12 @@ public class AStarAgent extends Agent {
     		//closed.putIfAbsent(cheapest.hashCode(), cheapest);
             	//System.out.println("next step is " + reversed.peek().x + ", " + reversed.peek().y);	
     	}
-    	System.out.println("PLANNING COMPLETED. NUMBER OF STEPS " + path.size());
+        System.out.println("No available path.");
+		System.exit(0);
     	return path;    
     }
     
+    //calculates euclidean distance given the current node and goal node
     private double calculateEuclidean(MapLocation current, MapLocation goal) {
     	return Math.sqrt(Math.pow(current.x - goal.x, 2) + Math.pow(current.y - goal.y, 2));
 		
