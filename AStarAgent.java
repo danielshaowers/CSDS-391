@@ -1,4 +1,4 @@
-package HW2.src.edu.cwru.sepia.agent;
+package EECS391_sepia;
 
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.Agent;
@@ -20,11 +20,20 @@ public class AStarAgent extends Agent {
 	class MapLocation
     {
         public int x, y;
+        MapLocation cameFrom;
+        float cost;
 
         public MapLocation(int x, int y, MapLocation cameFrom, float cost)
         {
             this.x = x;
             this.y = y;
+            
+        }
+        @Override
+        public boolean equals(Object ml) {
+        	if (ml instanceof MapLocation)
+        		return this.x == ((MapLocation)ml).x && this.y == ((MapLocation)ml).y;
+        	return false;
         }
     }
 
@@ -52,13 +61,16 @@ public class AStarAgent extends Agent {
             System.err.println("No units found!");
             return null;
         }
+
         footmanID = unitIDs.get(0);
+
         // double check that this is a footman
         if(!newstate.getUnit(footmanID).getTemplateView().getName().equals("Footman"))
         {
             System.err.println("Footman unit not found");
             return null;
         }
+
         // find the enemy playernum
         Integer[] playerNums = newstate.getPlayerNumbers();
         int enemyPlayerNum = -1;
@@ -69,18 +81,22 @@ public class AStarAgent extends Agent {
                 break;
             }
         }
+
         if(enemyPlayerNum == -1)
         {
             System.err.println("Failed to get enemy playernumber");
             return null;
         }
+
         // find the townhall ID
         List<Integer> enemyUnitIDs = newstate.getUnitIds(enemyPlayerNum);
+
         if(enemyUnitIDs.size() == 0)
         {
             System.err.println("Failed to find enemy units");
             return null;
         }
+
         townhallID = -1;
         enemyFootmanID = -1;
         for(Integer unitID : enemyUnitIDs)
@@ -115,6 +131,7 @@ public class AStarAgent extends Agent {
 
     @Override
     public Map<Integer, Action> middleStep(State.StateView newstate, History.HistoryView statehistory) {
+    	System.out.println("running middle step");
         long startTime = System.nanoTime();
         long planTime = 0;
 
@@ -213,8 +230,7 @@ public class AStarAgent extends Agent {
      */
     private boolean shouldReplanPath(State.StateView state, History.HistoryView history, Stack<MapLocation> currentPath)
     {
-    	return state.getUnit(enemyFootmanID) != null && currentPath.peek().x == state.getUnit(enemyFootmanID).getXPosition() && 
-    			currentPath.peek().y == state.getUnit(enemyFootmanID).getYPosition();
+        return false;
     }
 
     /**
@@ -307,44 +323,58 @@ public class AStarAgent extends Agent {
     	int currentposy = goal.y - 1;
     	int nextposx = 0;
     	int nextposy = 0;
-    	
     	int cheb_value = 0;
     	int cheb_prev = (int) Double.POSITIVE_INFINITY;
-    	
+    	Hashtable<Integer, MapLocation> closed = new Hashtable<Integer, MapLocation>();
         MapLocation temp = new MapLocation(0, 0, null, 0); 
         MapLocation cheapest = new MapLocation(0, 0, null, 0); //the cheapest next step found
-        
+        closed.put(goal.x + goal.y, goal);
     	//execute until the start coordinates are reached (we work backwards from the goal)
         //TODO add a hash table to represent the closed list, so we don't do redundant calcs at visited coordinates
     	while(!(cheapest.x == start.x && cheapest.y == start.y)) {
+    		cheapest = new MapLocation(0, 0, null, 0); //does this do anything tho
     		System.out.println("startingPos"+ currentposx + "," + currentposy);
-    		for(int x = 0; x < 3; x++) {
-            	for(int y= 0; y < 3; y++) { 
+    		for(int x = 0; x < 3; x++) 
+    		{
+            	for(int y= 0; y < 3; y++) 
+            	{ 
             		nextposx = currentposx + x; //nextpos is the next coordinate we're going to check
             		nextposy = currentposy + y; 
-            		temp = new MapLocation(nextposx, nextposy, null, 0); //set temp to the new coordinate             		
-            		//skips positions that either don't exist or is current player position  
-            		if (x != 1 || y != 1 && nextposx < xExtent && nextposy < yExtent && 
-            				!state.isResourceAt(nextposx, nextposy) && !state.isUnitAt(nextposx, nextposy)) {
-            			System.out.println("CHECKING NEIGHBOR AT LOCATION " + temp.x + "," + temp.y);           		
+            		temp = new MapLocation(nextposx, nextposy, null, 0); //set temp to the new coordinate  
+            		
+        			//System.out.println(resourceLocations);
+
+            		//skips positions that either don't exist or is current player position. 
+            		//might want to check containsValue instead w/ a better val, if our current doesn't work
+            		if (!closed.contains(temp)&& nextposx < xExtent && nextposy < yExtent && 
+            				!state.isResourceAt(nextposx, nextposy) && nextposx>-1 && nextposy>-1) 
+            		{
+            			System.out.println("CHECKING NEIGHBOR AT LOCATION " + temp.x + "," + temp.y);
+            			
             			//Chebyshev = D((x1,y1),(x2,y2))= max(|x1-x2|,|y1-y2|)
-            			cheb_value = Math.max(Math.abs(temp.x - start.x), Math.abs(temp.y - start.y));       	    	
+            			cheb_value = Math.max(Math.abs(temp.x - start.x), Math.abs(temp.y - start.y)); 
+
             			//updates if the cheb value is lower
             			if (cheb_prev > cheb_value) {
-            				System.out.println("CHEAPER F(X) FOUND AT FROM " + cheb_prev + " TO " + cheb_value);
+            				System.out.println("CHEAPER F(X) FOUND AT FROM " + cheb_prev + " TO " + cheb_value + "with coordinates" + temp.x + ","+ temp.y);
             				cheapest = temp;
             				cheb_prev = cheb_value;
             			}
             		}
             	}
     		}
-    		System.out.println("Cheapest"+cheapest.x +","+ cheapest.y);
+    		//System.out.println("Cheapest"+cheapest.x +","+ cheapest.y);
     		currentposx = cheapest.x-1;
     		currentposy = cheapest.y-1;
-    		if(cheapest.x != start.x && cheapest.y != start.y)
+    		if(cheapest.x != start.x || cheapest.y != start.y)
+    		{
     			path.push(cheapest);
+    			cheb_prev= (int) Double.POSITIVE_INFINITY;
+    			closed.put(cheapest.x + cheapest.y, cheapest);
+            	System.out.println("next step is " + path.peek().x + ", " + path.peek().y);
+    		}
     	}
-    	System.out.println("next step is " + path.peek().x + ", " + path.peek().y);
+    	System.out.println(path.size());
     	return path;    
     }
     		
