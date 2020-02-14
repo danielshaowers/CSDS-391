@@ -15,7 +15,7 @@ import java.util.*;
 
 import javax.swing.plaf.synth.SynthSeparatorUI;
 
-public class AstarAgent extends Agent {
+public class AStarAgent extends Agent {
 
 	class MapLocation
     {
@@ -29,6 +29,12 @@ public class AstarAgent extends Agent {
             this.y = y;
             
         }
+        @Override
+        public boolean equals(Object ml) {
+        	if (ml instanceof MapLocation)
+        		return this.x == ((MapLocation)ml).x && this.y == ((MapLocation)ml).y;
+        	return false;
+        }
     }
 
     Stack<MapLocation> path = new Stack<MapLocation>();
@@ -38,7 +44,7 @@ public class AstarAgent extends Agent {
     private long totalPlanTime = 0; // nsecs
     private long totalExecutionTime = 0; //nsecs
 
-    public AstarAgent(int playernum)
+    public AStarAgent(int playernum)
     {
         super(playernum);
 
@@ -125,6 +131,7 @@ public class AstarAgent extends Agent {
 
     @Override
     public Map<Integer, Action> middleStep(State.StateView newstate, History.HistoryView statehistory) {
+    	System.out.println("running middle step");
         long startTime = System.nanoTime();
         long planTime = 0;
 
@@ -316,16 +323,16 @@ public class AstarAgent extends Agent {
     	int currentposy = goal.y - 1;
     	int nextposx = 0;
     	int nextposy = 0;
-    	
     	int cheb_value = 0;
     	int cheb_prev = (int) Double.POSITIVE_INFINITY;
-    	
+    	Hashtable<Integer, MapLocation> closed = new Hashtable<Integer, MapLocation>();
         MapLocation temp = new MapLocation(0, 0, null, 0); 
         MapLocation cheapest = new MapLocation(0, 0, null, 0); //the cheapest next step found
-        
+        closed.put(goal.x + goal.y, goal);
     	//execute until the start coordinates are reached (we work backwards from the goal)
         //TODO add a hash table to represent the closed list, so we don't do redundant calcs at visited coordinates
     	while(!(cheapest.x == start.x && cheapest.y == start.y)) {
+    		cheapest = new MapLocation(0, 0, null, 0); //does this do anything tho
     		System.out.println("startingPos"+ currentposx + "," + currentposy);
     		for(int x = 0; x < 3; x++) 
     		{
@@ -337,9 +344,10 @@ public class AstarAgent extends Agent {
             		
         			//System.out.println(resourceLocations);
 
-            		//skips positions that either don't exist or is current player position  
-            		if ((x != 1 || y != 1 )&& nextposx < xExtent && nextposy < yExtent && 
-            				!state.isResourceAt(nextposx, nextposy) && x>-1 && y>-1) 
+            		//skips positions that either don't exist or is current player position. 
+            		//might want to check containsValue instead w/ a better val, if our current doesn't work
+            		if (!closed.contains(temp)&& nextposx < xExtent && nextposy < yExtent && 
+            				!state.isResourceAt(nextposx, nextposy) && nextposx>-1 && nextposy>-1) 
             		{
             			System.out.println("CHECKING NEIGHBOR AT LOCATION " + temp.x + "," + temp.y);
             			
@@ -355,18 +363,18 @@ public class AstarAgent extends Agent {
             		}
             	}
     		}
-    		//EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    		System.out.println("Cheapest"+cheapest.x +","+ cheapest.y);
+    		//System.out.println("Cheapest"+cheapest.x +","+ cheapest.y);
     		currentposx = cheapest.x-1;
     		currentposy = cheapest.y-1;
-    		if(cheapest.x != start.x && cheapest.y != start.y)
+    		if(cheapest.x != start.x || cheapest.y != start.y)
     		{
     			path.push(cheapest);
     			cheb_prev= (int) Double.POSITIVE_INFINITY;
+    			closed.put(cheapest.x + cheapest.y, cheapest);
+            	System.out.println("next step is " + path.peek().x + ", " + path.peek().y);
     		}
-    			
     	}
-    	System.out.println("next step is " + path.peek().x + ", " + path.peek().y);
+    	System.out.println(path.size());
     	return path;    
     }
     		
