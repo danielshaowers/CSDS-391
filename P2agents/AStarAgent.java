@@ -355,6 +355,7 @@ public class AstarAgent extends Agent {
             		}
             	}
     		}
+    		//EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
     		System.out.println("Cheapest"+cheapest.x +","+ cheapest.y);
     		currentposx = cheapest.x-1;
     		currentposy = cheapest.y-1;
