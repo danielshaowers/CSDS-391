@@ -1,5 +1,4 @@
 package HW2.src.edu.cwru.sepia.agent;
-
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
@@ -17,16 +16,17 @@ import javax.swing.plaf.synth.SynthSeparatorUI;
 
 public class AStarAgent extends Agent {
 
-	class MapLocation
-    {
+	class MapLocation implements Comparable<MapLocation> {
         public int x, y;
         MapLocation cameFrom;
-        float cost;
+        float cost; //cost represents the heuristic value
 
         public MapLocation(int x, int y, MapLocation cameFrom, float cost)
         {
             this.x = x;
             this.y = y;
+            this.cost = cost;
+            this.cameFrom = cameFrom;
             
         }
         @Override
@@ -34,6 +34,24 @@ public class AStarAgent extends Agent {
         	if (ml instanceof MapLocation)
         		return this.x == ((MapLocation)ml).x && this.y == ((MapLocation)ml).y;
         	return false;
+        }
+        
+        public float getCost() {
+        	return cost;
+        }
+        
+        @Override 
+        public int hashCode() {
+        	return 2 * x * x + y * y; 
+        }
+        
+        @Override
+        public int compareTo(MapLocation compare) {
+        	if (compare.getCost() < this.cost)
+        		return 1;
+        	if (compare.getCost() > this.cost)
+        		return -1;
+        	return 0;
         }
     }
 
@@ -131,12 +149,13 @@ public class AStarAgent extends Agent {
 
     @Override
     public Map<Integer, Action> middleStep(State.StateView newstate, History.HistoryView statehistory) {
+    	System.out.println("running middle step. steps left is " + path.size());
         long startTime = System.nanoTime();
         long planTime = 0;
-
         Map<Integer, Action> actions = new HashMap<Integer, Action>();
 
         if(shouldReplanPath(newstate, statehistory, path)) {
+        	System.out.println("REPLANNING PATH!");
             long planStartTime = System.nanoTime();
             path = findPath(newstate);
             planTime = System.nanoTime() - planStartTime;
@@ -149,13 +168,11 @@ public class AStarAgent extends Agent {
         int footmanY = footmanUnit.getYPosition();
 
         if(!path.empty() && (nextLoc == null || (footmanX == nextLoc.x && footmanY == nextLoc.y))) {
-
             // stat moving to the next step in the path
             nextLoc = path.pop();
-
             System.out.println("Moving to (" + nextLoc.x + ", " + nextLoc.y + ")");
         }
-
+        System.out.println("next loc is " + nextLoc);
         if(nextLoc != null && (footmanX != nextLoc.x || footmanY != nextLoc.y))
         {
             int xDiff = nextLoc.x - footmanX;
@@ -163,9 +180,9 @@ public class AStarAgent extends Agent {
 
             // figure out the direction the footman needs to move in
             Direction nextDirection = getNextDirection(xDiff, yDiff);
-
+            
             actions.put(footmanID, Action.createPrimitiveMove(footmanID, nextDirection));
-        } else {
+        } else { //there are no more moves in the stack now.
             Unit.UnitView townhallUnit = newstate.getUnit(townhallID);
 
             // if townhall was destroyed on the last turn
@@ -173,7 +190,6 @@ public class AStarAgent extends Agent {
                 terminalStep(newstate, statehistory);
                 return actions;
             }
-
             if(Math.abs(footmanX - townhallUnit.getXPosition()) > 1 ||
                     Math.abs(footmanY - townhallUnit.getYPosition()) > 1)
             {
@@ -229,7 +245,8 @@ public class AStarAgent extends Agent {
      */
     private boolean shouldReplanPath(State.StateView state, History.HistoryView history, Stack<MapLocation> currentPath)
     {
-        return false;
+        return state.getUnit(enemyFootmanID) != null && currentPath.peek().x == state.getUnit(enemyFootmanID).getXPosition() 
+        		&& currentPath.peek().y== state.getUnit(enemyFootmanID).getYPosition();
     }
 
     /**
@@ -318,66 +335,80 @@ public class AStarAgent extends Agent {
      */
     private Stack<MapLocation> AstarSearch(State.StateView state, MapLocation start, MapLocation goal, int xExtent, int yExtent, MapLocation enemyFootmanLoc, Set<MapLocation> resourceLocations)
     {
-    	int currentposx = goal.x - 1; //start at the bottom left of the neighbors
-    	int currentposy = goal.y - 1;
-    	int nextposx = 0;
-    	int nextposy = 0;
-    	int cheb_value = 0;
-    	int cheb_prev = (int) Double.POSITIVE_INFINITY;
-    	Hashtable<Integer, MapLocation> closed = new Hashtable<Integer, MapLocation>();
-        MapLocation temp = new MapLocation(0, 0, null, 0); 
+    	path.clear(); //want to empty stack every time Astar is called
+    	int currentposx = start.x - 1; //start at the bottom left of the neighbors
+    	int currentposy = start.y - 1;
+    	int nextposx, nextposy; 	//the next coordinates to move to
+    	double eucl_value = 0;		//the current euclidean val
+    	//double eucl_prev = Double.POSITIVE_INFINITY;
+    	Hashtable<Integer, MapLocation> closed = new Hashtable<Integer, MapLocation>(); //this becomes unnecessary?
+    	PriorityQueue<MapLocation> open = new PriorityQueue<MapLocation>(); //tracks any potential nodes
+        MapLocation temp = new MapLocation(0, 0, null, 0); //the map location specified by nextpos
         MapLocation cheapest = new MapLocation(0, 0, null, 0); //the cheapest next step found
-        closed.put(goal.x + goal.y, goal);
+        //closed.put(goal.hashCode(), goal); 
+        open.add(start);
     	//execute until the start coordinates are reached (we work backwards from the goal)
-        //TODO add a hash table to represent the closed list, so we don't do redundant calcs at visited coordinates
-    	while(!(cheapest.x == start.x && cheapest.y == start.y)) {
-    		cheapest = new MapLocation(0, 0, null, 0); //does this do anything tho
-    		System.out.println("startingPos"+ currentposx + "," + currentposy);
-    		for(int x = 0; x < 3; x++) 
-    		{
-            	for(int y= 0; y < 3; y++) 
-            	{ 
-            		nextposx = currentposx + x; //nextpos is the next coordinate we're going to check
-            		nextposy = currentposy + y; 
-            		temp = new MapLocation(nextposx, nextposy, null, 0); //set temp to the new coordinate  
-            		
-        			//System.out.println(resourceLocations);
-
+        //while (!isAdjacent(temp, start)) {
+        while (open.size() != 0) {
+        	MapLocation current = open.poll(); //the current node
+        	if (current.equals(goal)) //if we're at the goal
+        		return tracePath(current); //helper method that traces from goal
+        	closed.putIfAbsent(current.hashCode(), current); //add current to closed list
+    		for(int x = -1; x < 2; x++) { //gets all neighbors
+            	for(int y= -1; y < 2; y++) { 
+            		nextposx = current.x + x; //nextpos is the next coordinate we're going to check
+            		nextposy = current.y + y; 
+            		temp = new MapLocation(nextposx, nextposy, current, Float.MAX_VALUE); //set temp to the new coordinate  
             		//skips positions that either don't exist or is current player position. 
-            		//might want to check containsValue instead w/ a better val, if our current doesn't work
-            		if (!closed.contains(temp)&& nextposx < xExtent && nextposy < yExtent && 
-            				!state.isResourceAt(nextposx, nextposy) && x>-1 && y>-1) 
-            		{
-            			System.out.println("CHECKING NEIGHBOR AT LOCATION " + temp.x + "," + temp.y);
+            		if (nextposx < xExtent && nextposy < yExtent && !state.isResourceAt(nextposx, 
+            				nextposy) && nextposx >-1 && nextposy >- 1) {       		
+            			//cheb_value = Math.max(Math.abs(temp.x - start.x), Math.abs(temp.y - start.y)); 
+            			eucl_value = Math.sqrt(Math.pow(temp.x - goal.x, 2) + Math.pow(temp.y - goal.y, 2));
+            			temp.cost = (float) calculateEuclidean(temp, goal) + current.cost; //f = g+h
+            			//if current has never been visited, or if cheaper than what's already visited
+            			MapLocation hashVal = closed.get(temp.hashCode());
+            			//adds to open list if temp is cheaper than any other paths to temp in closed list
+            			if (hashVal == null || (temp.equals(hashVal) && temp.cost < hashVal.cost))
+            					open.add(temp); 
             			
-            			//Chebyshev = D((x1,y1),(x2,y2))= max(|x1-x2|,|y1-y2|)
-            			cheb_value = Math.max(Math.abs(temp.x - start.x), Math.abs(temp.y - start.y)); 
-
-            			//updates if the cheb value is lower
-            			if (cheb_prev > cheb_value) {
-            				System.out.println("CHEAPER F(X) FOUND AT FROM " + cheb_prev + " TO " + cheb_value + "with coordinates" + temp.x + ","+ temp.y);
+            			//cheb_value = Math.max(Math.abs(temp.x - goal.x), Math.abs(temp.y - goal.y));
+            			//updates if the euclidean val is smaller
+            			/*if (eucl_prev > eucl_value) {
+            				System.out.println("CHEAPER F(X) FOUND AT FROM " + eucl_prev + " TO " + eucl_value + "with coordinates" + temp.x + ","+ temp.y);
             				cheapest = temp;
-            				cheb_prev = cheb_value;
-            			}
+            				eucl_prev = eucl_value;
+            			}*/
+            			
             		}
             	}
     		}
-    		System.out.println("Cheapest"+cheapest.x +","+ cheapest.y);
-    		currentposx = cheapest.x-1;
-    		currentposy = cheapest.y-1;
-    		if(cheapest.x != start.x && cheapest.y != start.y)
-    		{
-    			path.push(cheapest);
-    			cheb_prev= (int) Double.POSITIVE_INFINITY;
-    			closed.put(cheapest.x + cheapest.y, cheapest);
-    		}
-    			
+    		//reset posx and posy to the top left 
+    		//currentposx = cheapest.x - 1;
+    		//currentposy = cheapest.y - 1;
+    		
+    		//path.push(cheapest);
+    		//eucl_prev= Double.POSITIVE_INFINITY;
+    		//closed.putIfAbsent(cheapest.hashCode(), cheapest);
+            	//System.out.println("next step is " + reversed.peek().x + ", " + reversed.peek().y);	
     	}
-    	System.out.println("next step is " + path.peek().x + ", " + path.peek().y);
+    	System.out.println("PLANNING COMPLETED. NUMBER OF STEPS " + path.size());
     	return path;    
     }
-    		
-        	
+    
+    private double calculateEuclidean(MapLocation current, MapLocation goal) {
+    	return Math.sqrt(Math.pow(current.x - goal.x, 2) + Math.pow(current.y - goal.y, 2));
+		
+    }
+    //returns whether the target destination is adjacent to our current location
+    private boolean isAdjacent(MapLocation current, MapLocation target) {
+    	return Math.abs(current.x - target.x) <= 1 && Math.abs(current.y - target.y) <= 1;
+    }
+    //trace back the path from the goal node		
+    private Stack<MapLocation> tracePath(MapLocation goal) {
+    	for (MapLocation parent = goal.cameFrom; parent.cameFrom != null; parent = parent.cameFrom) 
+    		path.push(parent);
+    	return path;
+    }
 
     /**
      * Primitive actions take a direction (e.g. Direction.NORTH, Direction.NORTHEAST, etc)
