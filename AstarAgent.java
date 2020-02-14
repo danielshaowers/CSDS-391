@@ -15,7 +15,7 @@ import java.util.*;
 
 import javax.swing.plaf.synth.SynthSeparatorUI;
 
-public class AstarAgent extends Agent {
+public class AStarAgent extends Agent {
 
 	class MapLocation
     {
@@ -35,7 +35,7 @@ public class AstarAgent extends Agent {
     private long totalPlanTime = 0; // nsecs
     private long totalExecutionTime = 0; //nsecs
 
-    public AstarAgent(int playernum)
+    public AStarAgent(int playernum)
     {
         super(playernum);
 
