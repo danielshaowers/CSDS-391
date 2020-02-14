@@ -20,15 +20,18 @@ public class AstarAgent extends Agent {
 	class MapLocation
     {
         public int x, y;
+        MapLocation cameFrom;
+        float cost;
 
         public MapLocation(int x, int y, MapLocation cameFrom, float cost)
         {
             this.x = x;
             this.y = y;
+            
         }
     }
 
-    Stack<MapLocation> path;
+    Stack<MapLocation> path = new Stack<MapLocation>();
     int footmanID, townhallID, enemyFootmanID;
     MapLocation nextLoc;
 
@@ -256,7 +259,7 @@ public class AstarAgent extends Agent {
         }
         System.out.println(startLoc.x);
 
-        return AstarSearch(startLoc, goalLoc, state.getXExtent(), state.getYExtent(), footmanLoc, resourceLocations);
+        return AstarSearch(state, startLoc, goalLoc, state.getXExtent(), state.getYExtent(), footmanLoc, resourceLocations);
     }
     /**
      * This is the method you will implement for the assignment. Your implementation
@@ -307,66 +310,63 @@ public class AstarAgent extends Agent {
      * @param resourceLocations Set of positions occupied by resources
      * @return Stack of positions with top of stack being first move in plan
      */
-    private Stack<MapLocation> AstarSearch(MapLocation start, MapLocation goal, int xExtent, int yExtent, MapLocation enemyFootmanLoc, Set<MapLocation> resourceLocations)
+    private Stack<MapLocation> AstarSearch(State.StateView state, MapLocation start, MapLocation goal, int xExtent, int yExtent, MapLocation enemyFootmanLoc, Set<MapLocation> resourceLocations)
     {
-    	int currentposx = goal.x;
-    	int currentposy = goal.y;
+    	int currentposx = goal.x - 1; //start at the bottom left of the neighbors
+    	int currentposy = goal.y - 1;
     	int nextposx = 0;
     	int nextposy = 0;
     	
     	int cheb_value = 0;
-    	int cheb_prev = (int)Double.POSITIVE_INFINITY;
+    	int cheb_prev = (int) Double.POSITIVE_INFINITY;
     	
-        MapLocation temp = new MapLocation(0, 0, null, 0);
-        MapLocation valid = new MapLocation(0, 0, null, 0);
-    	Stack<MapLocation> goodpath = new Stack<MapLocation>();
+        MapLocation temp = new MapLocation(0, 0, null, 0); 
+        MapLocation cheapest = new MapLocation(0, 0, null, 0); //the cheapest next step found
+        
+    	//execute until the start coordinates are reached (we work backwards from the goal)
+        //TODO add a hash table to represent the closed list, so we don't do redundant calcs at visited coordinates
+    	while(!(cheapest.x == start.x && cheapest.y == start.y)) {
+    		System.out.println("startingPos"+ currentposx + "," + currentposy);
+    		for(int x = 0; x < 3; x++) 
+    		{
+            	for(int y= 0; y < 3; y++) 
+            	{ 
+            		nextposx = currentposx + x; //nextpos is the next coordinate we're going to check
+            		nextposy = currentposy + y; 
+            		temp = new MapLocation(nextposx, nextposy, null, 0); //set temp to the new coordinate  
+            		
+        			//System.out.println(resourceLocations);
 
-    	//all possible locations to move to
-    	while(!(temp.x==start.x && temp.y==start.y))
-    	{
-    		for(int x=-1; x<2; x++)
-            {
-            	for(int y=-1; y<2; y++)
-            	{
-            		nextposx = currentposx+x;
-            		nextposy = currentposy+y; 
-            		temp = new MapLocation(nextposx, nextposy, null, 0);  
-            		
-            		//skips positions that either don't exist or is current player position
-            		//System.out.println("Coordinates" + temp.x + ","+ temp.y);
-            		if(x==0 && y==0)
-            			continue;
-            		
-            		else if (nextposx<-1 || nextposx>xExtent)
-            			continue;
-            		
-            		else if (nextposy<-1 || nextposy>yExtent)
-            			continue;
-            		
-            		else if (resourceLocations.contains(temp))
-            			continue;
-            		System.out.println(resourceLocations);
-            		System.out.println(temp);
-            		
-            		//Chebushev = D((x1,y1),(x2,y2))= max(|x1-x2|,|y1-y2|)
-        	    	cheb_value = Math.max(Math.abs(temp.x-start.x), Math.abs(temp.y-start.y));
-        	    	
-        	    	//checks which coordinate has the lower cheb value
-        	    	if (cheb_prev<cheb_value)	
-        	    		cheb_value = cheb_prev;
-        	    	else
-        	    		valid = temp;
+            		//skips positions that either don't exist or is current player position  
+            		if ((x != 1 || y != 1 )&& nextposx < xExtent && nextposy < yExtent && 
+            				!state.isResourceAt(nextposx, nextposy) && x>-1 && y>-1) 
+            		{
+            			System.out.println("CHECKING NEIGHBOR AT LOCATION " + temp.x + "," + temp.y);
+            			
+            			//Chebyshev = D((x1,y1),(x2,y2))= max(|x1-x2|,|y1-y2|)
+            			cheb_value = Math.max(Math.abs(temp.x - start.x), Math.abs(temp.y - start.y)); 
 
-        	    	cheb_prev = cheb_value;
+            			//updates if the cheb value is lower
+            			if (cheb_prev > cheb_value) {
+            				System.out.println("CHEAPER F(X) FOUND AT FROM " + cheb_prev + " TO " + cheb_value + "with coordinates" + temp.x + ","+ temp.y);
+            				cheapest = temp;
+            				cheb_prev = cheb_value;
+            			}
+            		}
             	}
-            }
-    		currentposx = valid.x;
-    		currentposy = valid.y;
-        	goodpath.push(valid);
-        	System.out.println(valid.x);
+    		}
+    		System.out.println("Cheapest"+cheapest.x +","+ cheapest.y);
+    		currentposx = cheapest.x-1;
+    		currentposy = cheapest.y-1;
+    		if(cheapest.x != start.x && cheapest.y != start.y)
+    		{
+    			path.push(cheapest);
+    			cheb_prev= (int) Double.POSITIVE_INFINITY;
+    		}
+    			
     	}
-    	System.out.println(goodpath);
-    	return goodpath;
+    	System.out.println("next step is " + path.peek().x + ", " + path.peek().y);
+    	return path;    
     }
     		
         	
