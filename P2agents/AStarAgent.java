@@ -228,25 +228,14 @@ public class AStarAgent extends Agent {
     }
 
     /**
-     * You will implement this method.
-     *
-     * This method should return true when the path needs to be replanned
-     * and false otherwise. This will be necessary on the dynamic map where the
-     * footman will move to block your unit.
-     * 
-     * You can check the position of the enemy footman with the following code:
-     * state.getUnit(enemyFootmanID).getXPosition() or .getYPosition().
-     * 
-     * There are more examples of getting the positions of objects in SEPIA in the findPath method.
-     *
      * @param state
      * @param history
      * @param currentPath
      * @return
      */
     private boolean shouldReplanPath(State.StateView state, History.HistoryView history, Stack<MapLocation> currentPath)
-    {
-        return state.getUnit(enemyFootmanID) != null && currentPath.peek().x == state.getUnit(enemyFootmanID).getXPosition() 
+    {  //return whether there is an enemy footman at the location of our next move
+        return state.getUnit(enemyFootmanID) != null && !currentPath.empty() && currentPath.peek().x == state.getUnit(enemyFootmanID).getXPosition() 
         		&& currentPath.peek().y== state.getUnit(enemyFootmanID).getYPosition();
     }
 
@@ -338,7 +327,6 @@ public class AStarAgent extends Agent {
     {
     	path.clear(); //want to empty stack every time Astar is called
     	int nextposx, nextposy; 	//the next coordinates to move to
-    	//double eucl_prev = Double.POSITIVE_INFINITY;
     	Hashtable<Integer, MapLocation> closed = new Hashtable<Integer, MapLocation>(); //this becomes unnecessary?
     	PriorityQueue<MapLocation> open = new PriorityQueue<MapLocation>(); //tracks any potential nodes
         MapLocation temp = new MapLocation(0, 0, null, 0); //the map location specified by nextpos
@@ -354,8 +342,8 @@ public class AStarAgent extends Agent {
             		nextposy = current.y + y;
             		temp = new MapLocation(nextposx, nextposy, current, Float.MAX_VALUE); //set temp to the new coordinate  
             		//skips positions that either don't exist or is current player position. 
-            		if (nextposx < xExtent && nextposy < yExtent && !state.isResourceAt(nextposx, 
-            				nextposy) && nextposx > -1 && nextposy > -1 && !enemyFootmanLoc.equals(temp)) { 
+            		if (nextposx < xExtent && nextposy < yExtent && !state.isResourceAt(nextposx, nextposy) 
+            				&& nextposx > -1 && nextposy > -1 && (enemyFootmanLoc == null || !enemyFootmanLoc.equals(temp))) { 
             			temp.cost = (float) calculateEuclidean(temp, goal) + current.cost; //f = g+h
             			//if current has never been visited, or if cheaper than what's already visited
             			MapLocation hashVal = closed.get(temp.hashCode()); //tries to find temp in hash table
@@ -365,26 +353,9 @@ public class AStarAgent extends Agent {
             			}
             	}
     		}
-            			//cheb_value = Math.max(Math.abs(temp.x - goal.x), Math.abs(temp.y - goal.y));
-            			//updates if the euclidean val is smaller
-            			/*if (eucl_prev > eucl_value) {
-            				System.out.println("CHEAPER F(X) FOUND AT FROM " + eucl_prev + " TO " + eucl_value + "with coordinates" + temp.x + ","+ temp.y);
-            				cheapest = temp;
-            				eucl_prev = eucl_value;
-            			}*/
-            			
-            	
-    		//reset posx and posy to the top left 
-    		//currentposx = cheapest.x - 1;
-    		//currentposy = cheapest.y - 1;
-    		
-    		//path.push(cheapest);
-    		//eucl_prev= Double.POSITIVE_INFINITY;
-    		//closed.putIfAbsent(cheapest.hashCode(), cheapest);
-            	//System.out.println("next step is " + reversed.peek().x + ", " + reversed.peek().y);	
-    	}
-        System.out.println("No available path.");
-		System.exit(0);
+        }
+        //System.out.println("No available path.");
+		//System.exit(0);
     	return path;    
     }
     
