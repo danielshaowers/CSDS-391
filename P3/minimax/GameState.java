@@ -56,9 +56,11 @@ public class GameState {
      * @param state Current state of the episode
      */
 	private ArrayList<Stack<MapLocation>> bestPath = new ArrayList<Stack<MapLocation>>();
-	private double[] enemyDistance;
-	private double[] distanceFromBest;
-	private int maxDepth = 10;
+	private double enemyDistance = 0;
+	private double distanceFromBest =0;
+	private double allyDistance = 0;
+	private double enemyDistanceToEdge = 0;
+	private State.StateView state;
 	public List<Integer> getUnitIDs() {
 		return unitIDs;
 	}
@@ -70,36 +72,44 @@ public class GameState {
 	private ArrayList<Stack<MapLocation>> optimalPath = new ArrayList<Stack<MapLocation>>();
 	
     public GameState(State.StateView state) {
+    	this.state = state;
     	Integer[] playerNums = state.getPlayerNumbers();
     	int playernum = playerNums[0];
     	int enemyPlayerNum = playerNums[1];
     	// get the footman location
         unitIDs = state.getUnitIds(playernum);
         enemyUnitIDs = state.getUnitIds(enemyPlayerNum);
-        enemyDistance = new double[unitIDs.size()];
     	for (int i = 0; i < unitIDs.size(); i++) {
     		UnitView dude = state.getUnit(unitIDs.get(i));
-    		enemyDistance[i] = MapLocation.calculateEuclidean(getLocation(dude), getLocation(state.getUnit(enemyUnitIDs.get(i % enemyUnitIDs.size()))));
+    		enemyDistance += MapLocation.calculateEuclidean(getLocation(dude), getLocation(state.getUnit(enemyUnitIDs.get(i % enemyUnitIDs.size()))));
     	}
     }
-    
-    public GameState(State.StateView state, ArrayList<Stack<MapLocation>> optimalPath) {
-    	bestPath = optimalPath;
+    public State.StateView getState(){
+    	return state;
+    }
+    public GameState(State.StateView state, MapLocation optimalPath) { //when a-b search is called, must pop while creating game state
+    	//bestPath = optimalPath;
+    	this.state = state;
     	Integer[] playerNums = state.getPlayerNumbers();
     	int playernum = playerNums[0];
     	int enemyPlayerNum = playerNums[1];
     	// get the footman location
         List<Integer> unitIDs = state.getUnitIds(playernum);
         List<Integer> enemyUnitIDs = state.getUnitIds(enemyPlayerNum);
-        enemyDistance = new double[unitIDs.size()];
     	for (int i = 0; i < unitIDs.size(); i++) { //find distance away from enemy and from optimal path
     		UnitView dude = state.getUnit(unitIDs.get(i));
-    		enemyDistance[i] = MapLocation.calculateEuclidean(getLocation(dude), getLocation(state.getUnit(enemyUnitIDs.get(i % enemyUnitIDs.size()))));
-    		MapLocation current = optimalPath.get(i).pop();
-    		distanceFromBest[i] = MapLocation.calculateEuclidean(getLocation(state.getUnit(unitIDs.get(i))), current); 
+    		enemyDistance += MapLocation.calculateEuclidean(getLocation(dude), getLocation(state.getUnit(enemyUnitIDs.get(i % enemyUnitIDs.size()))));
+    		MapLocation current = optimalPath;
+    		distanceFromBest += MapLocation.calculateEuclidean(getLocation(state.getUnit(unitIDs.get(i))), current); 
+    		for(int j = i+1; j < unitIDs.size(); j++) {
+    			allyDistance += MapLocation.calculateEuclidean(getLocation(dude), getLocation(state.getUnit(unitIDs.get(j))));
+    		}
     	}
-    
-    	
+    	for (Integer e: enemyUnitIDs) {
+    		UnitView enemy = state.getUnit(e);
+    		enemyDistanceToEdge += Math.min(state.getXExtent() - enemy.getXPosition(), enemy.getXPosition());
+    		enemyDistanceToEdge += Math.min(state.getYExtent() - enemy.getYPosition(), enemy.getYPosition());
+    	}
     }
   
     private MapLocation getLocation(UnitView dude) {
@@ -127,10 +137,10 @@ public class GameState {
      *
      * @return The weighted linear combination of the features
      */
-    public double getUtility() { //health? distance to enemy #1 priority. closeness to Astar path?
+    //if we could make this proportional to our unit health that'd be dope. find if in range and how much damage they do
+    public double getUtility() { //health? distance to enemy #1 priority. closeness to Astar path? out of range
     	//heuristic distance. maybe A* path length, outside of path range, near a corner. far from other footman
-        
-    	return 0.0;
+        return enemyDistanceToEdge/(0.4 * enemyDistance + 0.2 * allyDistance + 0.4 * distanceFromBest) ;
     }
 
     /**
@@ -173,6 +183,6 @@ public class GameState {
      */
     //gameStateChild = game state with action associated with how we reached that child. has public variables that are just the variables
     public List<GameStateChild> getChildren() {
-        return null;
+    	return null;
     }   
 }

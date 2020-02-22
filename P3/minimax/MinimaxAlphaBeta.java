@@ -1,6 +1,7 @@
 package minimax;
 
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionType;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
 import edu.cwru.sepia.environment.model.state.State;
@@ -11,11 +12,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Stack;
+
+import com.sun.javafx.scene.traversal.Direction;
 
 public class MinimaxAlphaBeta extends Agent {
 
@@ -48,7 +52,8 @@ public class MinimaxAlphaBeta extends Agent {
         GameStateChild bestChild = alphaBetaSearch(new GameStateChild(newstate),
                 numPlys,
                 Double.NEGATIVE_INFINITY,
-                Double.POSITIVE_INFINITY);
+                Double.POSITIVE_INFINITY); //returns the best child found from alphaBetaSearch
+        
    
 
         return bestChild.action;
@@ -101,10 +106,39 @@ public class MinimaxAlphaBeta extends Agent {
      *
      * @param children
      * @return The list of children sorted by your heuristic.
-     */
+     */ //if action moves me closer
     public List<GameStateChild> orderChildrenWithHeuristics(List<GameStateChild> children)
-    {
-        return children;
+    { //the point is to order by highest utility without examining the utilities (since that takes further plies)
+        //assign each action+location a heuristic, then quicksort based on the values
+    	ArrayList<Integer> heuristic = new ArrayList<Integer>();
+    	int i = 0;
+    	for (GameStateChild child: children) { //merge sort, but we already have
+    		heuristic.add(0);
+    		for (Integer ally: child.state.getUnitIDs()) {
+    			UnitView footman = child.state.getState().getUnit(ally);
+    			Action action = child.action.get(ally);
+    			if (ActionType.PRIMITIVEATTACK.equals(action.getType())){
+    				 heuristic.set(i, heuristic.get(i) + 10); 
+    			}
+    			if (ActionType.PRIMITIVEMOVE.equals(action.getType())) {
+    				UnitView enemy = child.state.getState().getUnit(child.state.getEnemyUnitIDs().get(i));
+    				int xDistToEnemy =  footman.getXPosition() - enemy.getXPosition();
+    				int yDistToEnemy = footman.getYPosition() - enemy.getYPosition();
+    				//not sure how to find the direction of a move. but if the move direction is south 
+    				//and yDist is negative, add 3 to heuristic. similar logic for xDist
+    			}
+    		}
+    	}
+    	return children;
+    }
+    
+    public class HeuristicChildPair{
+    	public int heuristic;
+    	public GameStateChild child;
+    	public HeuristicChildPair(int heuristic, GameStateChild child) {
+    		this.heuristic = heuristic;
+    		this.child = child;
+    	}
     }
     public ArrayList<Stack<MapLocation>> getOptimalPath(int max_depth, State.StateView state, List<Integer> unitIDs, List<Integer> enemyUnitIDs) {   	
     	AStarSearcher search = new AStarSearcher();
@@ -120,8 +154,7 @@ public class MinimaxAlphaBeta extends Agent {
     	return optimalPaths;
     }
     public class AStarSearcher {
-    	Stack<MapLocation> path = new Stack<MapLocation>();
-    	  
+    	Stack<MapLocation> path = new Stack<MapLocation>();    	  
     	public Stack<MapLocation> AstarSearch(int maxDepth, Stack<MapLocation> path, State.StateView state, MapLocation start, MapLocation goal, int xExtent, int yExtent){		  
     	    	path.clear(); //want to empty Stack every time Astar is called
     	    	int nextposx, nextposy; 	//the next coordinates to move to
@@ -146,7 +179,6 @@ public class MinimaxAlphaBeta extends Agent {
     	            			//if current has never been visited, or if cheaper than what's already visited
     	            			MapLocation hashVal = closed.get(temp.hashCode()); //tries to find temp in hash table
     	            			//adds to open list if temp is cheaper than other paths to temp in closed list
-    	            		//	System.out.println("hashVal == null " + hashVal == null);
     	            			if (hashVal == null || (temp.equals(hashVal) && temp.cost < hashVal.cost))
     	            					open.add(temp); 
     	            			}
@@ -159,7 +191,6 @@ public class MinimaxAlphaBeta extends Agent {
     	    private boolean isAdjacent(MapLocation current, MapLocation target) {
     	    	return Math.abs(current.x - target.x) <= 1 && Math.abs(current.y - target.y) <= 1;
     	    }
-    	    
     	    //trace back the path from the goal node		
     	    public Stack<MapLocation> tracePath(MapLocation goal) {
     	    	Stack<MapLocation> path = new Stack<MapLocation>();
