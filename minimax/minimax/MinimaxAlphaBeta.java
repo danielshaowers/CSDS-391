@@ -27,6 +27,7 @@ public class MinimaxAlphaBeta extends Agent {
 
     private final int numPlys;
     private ArrayList<Stack<MapLocation>> optimalPaths = new ArrayList<Stack<MapLocation>>();
+    
     public MinimaxAlphaBeta(int playernum, String[] args) {
         super(playernum);
         if(args.length < 1)
@@ -90,41 +91,65 @@ public class MinimaxAlphaBeta extends Agent {
      */
     public GameStateChild alphaBetaSearch(GameStateChild node, int depth, double alpha, double beta)
     {
-    	 {
-    	    	double maxEval;
-    	    	GameStateChild eval;
-    	    	if (depth == 0)
-    	    		return node;
-    	    	
-    	    	if(node.state.getEnemyUnitIDs().size() == 1)
-    	    	{
-    	    		maxEval = Double.NEGATIVE_INFINITY; 
-    	    		for(GameStateChild x:node.state.getChildren())
-    	    		{
-    	    			eval = alphaBetaSearch(x,depth-1,alpha,beta);
-    	    			alpha = Math.max(alpha,maxEval);
-    	        		if (beta>alpha)
-    	        			break;
-    	        		return node;		
-    	    		}	
-    	    	}
-    	    	else
-    	    	{
-    	    		for(GameStateChild x:node.state.getChildren())
-    	    		{
-    	        		maxEval = Double.POSITIVE_INFINITY; 
-    	    			eval = alphaBetaSearch(x,depth-1,alpha,beta);
-    	    			alpha = Math.max(alpha,maxEval);
-    	        		if (beta>alpha)
-    	        			break;
-    	        		return node;		
-    	    		}	
-    	    	}
-    	    	
-    	        return node;
-    	    }
-
+    	//calls all the children of the node and returns back node with max value
+	    	 return maximumValue(node,depth,alpha,beta);
     }
+    
+    public static GameStateChild maximumValue(GameStateChild node, int depth, double alpha, double beta)
+    {
+    	if (depth == 0)
+    		return node;
+    	else
+    	{
+    		GameStateChild maxnode = null;
+    		double maxEval = Double.NEGATIVE_INFINITY;
+    		
+    		//determines node with max value by recursively calling all its children
+        	for(GameStateChild x:node.state.getChildren())
+    		{
+        		//stores node that opponent is most likely to choose
+        		maxnode = minimumValue(node, depth-1, alpha, beta);
+        		
+        		//decides which node has higher utility i.e. which node team awesome will choose
+    			alpha = Math.max(maxEval,maxnode.state.getUtility());
+        		maxEval = alpha;
+        		
+        		//prunes
+        		if (beta>alpha)
+        			break;
+    		}
+        	
+        	return maxnode;
+    	}
+    }
+    
+    public static GameStateChild minimumValue(GameStateChild node, int depth, double alpha, double beta)
+    {
+    	if (depth == 0)
+    		return node;
+    	else
+    	{
+    		GameStateChild minnode = null;
+    		double minEval = Double.POSITIVE_INFINITY;
+    		
+    		//determines node with min value by recursively calling all its children
+        	for(GameStateChild x:node.state.getChildren())
+    		{
+        		//stores node that team awesome is most likely to choose 
+        		minnode = maximumValue(x,depth-1,alpha,beta);
+        		
+        		//decides which node has lower utility i.e. which node opponent will choose
+    			beta = Math.max(minEval,minnode.state.getUtility());
+    			minEval = beta;
+    			
+    			//prunes
+    			if (beta>alpha)
+    				break;
+    		}
+        	return minnode;
+    	}
+    }
+
 
     /**
      * You will implement this.
@@ -160,7 +185,8 @@ public class MinimaxAlphaBeta extends Agent {
     			Action action = child.action.get(uID);
     			if (ActionType.PRIMITIVEATTACK.equals(action.getType())) //beneficial if we attack
     				heuristic.get(i).incrVal(10 * multiplier);  		
-    			heuristic.get(i).incrVal(-child.state.getNearestEnemyDist(unit) * multiplier);
+    			int[] enemyDistance = child.state.findEnemyDistances(unit);
+    			heuristic.get(i).incrVal(-enemyDistance[0] * multiplier);
     			/*if (ActionType.PRIMITIVEMOVE.equals(action.getType())) { //not sure how to check direction
     				UnitView enemy = child.state.getState().getUnit(child.state.getEnemyUnitIDs().get(i));
     				int xDistToEnemy =  footman.getXPosition() - enemy.getXPosition();
