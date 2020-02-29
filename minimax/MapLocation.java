@@ -16,9 +16,9 @@ public class MapLocation implements Comparable<MapLocation> {
     }
     
     //calculates euclidean distance given the current node and goal node
-   	public static double calculateEuclidean(MapLocation current, MapLocation goal) {
-   		return Math.sqrt(Math.pow(current.x - goal.x, 2) + Math.pow(current.y - goal.y, 2));	
-   		}
+   	public static int calculateManhattan(MapLocation current, MapLocation goal) {
+   		return Math.abs(current.x - goal.x) + Math.abs(current.y - goal.y);	
+   	}
    	
     @Override
     public boolean equals(Object ml) {

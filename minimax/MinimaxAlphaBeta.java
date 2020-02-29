@@ -6,11 +6,13 @@ import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.Unit.UnitView;
+import javafx.util.Pair;
 import minimax.MapLocation;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -25,6 +27,7 @@ public class MinimaxAlphaBeta extends Agent {
 
     private final int numPlys;
     private ArrayList<Stack<MapLocation>> optimalPaths = new ArrayList<Stack<MapLocation>>();
+    
     public MinimaxAlphaBeta(int playernum, String[] args) {
         super(playernum);
         if(args.length < 1)
@@ -37,13 +40,13 @@ public class MinimaxAlphaBeta extends Agent {
 
     @Override
     public Map<Integer, Action> initialStep(State.StateView newstate, History.HistoryView statehistory) {
-        Integer[] playerNums = newstate.getPlayerNumbers();
+       /* Integer[] playerNums = newstate.getPlayerNumbers();
     	int playernum = playerNums[0];
     	int enemyPlayerNum = playerNums[1];
     	// get the footman location
         List<Integer> unitIDs = newstate.getUnitIds(playernum);
         List<Integer> enemyUnitIDs = newstate.getUnitIds(enemyPlayerNum);
-        getOptimalPath(numPlys, newstate,  unitIDs, enemyUnitIDs);
+        getOptimalPath(numPlys, newstate,  unitIDs, enemyUnitIDs); */
         return middleStep(newstate, statehistory);
     }
 
@@ -88,41 +91,65 @@ public class MinimaxAlphaBeta extends Agent {
      */
     public GameStateChild alphaBetaSearch(GameStateChild node, int depth, double alpha, double beta)
     {
-    	 {
-    	    	double maxEval;
-    	    	GameStateChild eval;
-    	    	if (depth == 0)
-    	    		return node;
-    	    	
-    	    	if(node.state.getEnemyUnitIDs().size() == 1)
-    	    	{
-    	    		maxEval = Double.NEGATIVE_INFINITY; 
-    	    		for(GameStateChild x:node.state.getChildren())
-    	    		{
-    	    			eval = alphaBetaSearch(x,depth-1,alpha,beta);
-    	    			alpha = Math.max(alpha,maxEval);
-    	        		if (beta>alpha)
-    	        			break;
-    	        		return node;		
-    	    		}	
-    	    	}
-    	    	else
-    	    	{
-    	    		for(GameStateChild x:node.state.getChildren())
-    	    		{
-    	        		maxEval = Double.POSITIVE_INFINITY; 
-    	    			eval = alphaBetaSearch(x,depth-1,alpha,beta);
-    	    			alpha = Math.max(alpha,maxEval);
-    	        		if (beta>alpha)
-    	        			break;
-    	        		return node;		
-    	    		}	
-    	    	}
-    	    	
-    	        return node;
-    	    }
-
+    	//calls all the children of the node and returns back node with max value
+	    	 return maximumValue(node,depth,alpha,beta);
     }
+    
+    public static GameStateChild maximumValue(GameStateChild node, int depth, double alpha, double beta)
+    {
+    	if (depth == 0)
+    		return node;
+    	else
+    	{
+    		GameStateChild maxnode = null;
+    		double maxEval = Double.NEGATIVE_INFINITY;
+    		
+    		//determines node with max value by recursively calling all its children
+        	for(GameStateChild x:node.state.getChildren())
+    		{
+        		//stores node that opponent is most likely to choose
+        		maxnode = minimumValue(node, depth-1, alpha, beta);
+        		
+        		//decides which node has higher utility i.e. which node team awesome will choose
+    			alpha = Math.max(maxEval,maxnode.state.getUtility());
+        		maxEval = alpha;
+        		
+        		//prunes
+        		if (beta>alpha)
+        			break;
+    		}
+        	
+        	return maxnode;
+    	}
+    }
+    
+    public static GameStateChild minimumValue(GameStateChild node, int depth, double alpha, double beta)
+    {
+    	if (depth == 0)
+    		return node;
+    	else
+    	{
+    		GameStateChild minnode = null;
+    		double minEval = Double.POSITIVE_INFINITY;
+    		
+    		//determines node with min value by recursively calling all its children
+        	for(GameStateChild x:node.state.getChildren())
+    		{
+        		//stores node that team awesome is most likely to choose 
+        		minnode = maximumValue(x,depth-1,alpha,beta);
+        		
+        		//decides which node has lower utility i.e. which node opponent will choose
+    			beta = Math.max(minEval,minnode.state.getUtility());
+    			minEval = beta;
+    			
+    			//prunes
+    			if (beta>alpha)
+    				break;
+    		}
+        	return minnode;
+    	}
+    }
+
 
     /**
      * You will implement this.
@@ -136,50 +163,72 @@ public class MinimaxAlphaBeta extends Agent {
      *
      * @param children
      * @return The list of children sorted by your heuristic.
-     */ //if action moves me closer
+     */ //if action moves me closer, makes an attack, distance comparison.
+    //note that we use higher heuristic values to represent better outcomes rather than to estimate utility directly
     public List<GameStateChild> orderChildrenWithHeuristics(List<GameStateChild> children)
     { //the point is to order by highest utility without examining the utilities (since that takes further plies)
         //assign each action+location a heuristic, then quicksort based on the values
-    	ArrayList<Integer> heuristic = new ArrayList<Integer>();
-    	int i = 0;
-    	for (GameStateChild child: children) { //merge sort, but we already have
-    		heuristic.add(0);
-    		for (Integer ally: child.state.getUnitIDs()) {
-    			UnitView footman = child.state.getState().getUnit(ally);
-    			Action action = child.action.get(ally);
-    			if (ActionType.PRIMITIVEATTACK.equals(action.getType())){ //weight favorably if we attack
-    				 heuristic.set(i, heuristic.get(i) + 10); 
-    			}
-    			if (ActionType.PRIMITIVEMOVE.equals(action.getType())) {
+    	ArrayList<HeuristicChildPair> heuristic = new ArrayList<HeuristicChildPair>(); 	    	
+    	int i = -1;
+    	int multiplier = 1; //multiply all heuristics w/ this value
+    	for (GameStateChild child: children) { //for each child gamestate
+    		heuristic.add(++i, new HeuristicChildPair(0, child));
+    		List<Integer> units;
+    		if (child.state.getPlayerNum() == 0) // If friendly unit
+    			units = child.state.getUnitIDs();
+    		else {
+    			units = child.state.getEnemyUnitIDs();
+    			multiplier = -1;
+    		} 		
+    		for (Integer uID: units) { //check info about allies
+    			UnitView unit = child.state.getState().getUnit(uID);
+    			Action action = child.action.get(uID);
+    			if (ActionType.PRIMITIVEATTACK.equals(action.getType())) //beneficial if we attack
+    				heuristic.get(i).incrVal(10 * multiplier);  		
+    			int[] enemyDistance = child.state.findEnemyDistances(unit);
+    			heuristic.get(i).incrVal(-enemyDistance[0] * multiplier);
+    			/*if (ActionType.PRIMITIVEMOVE.equals(action.getType())) { //not sure how to check direction
     				UnitView enemy = child.state.getState().getUnit(child.state.getEnemyUnitIDs().get(i));
     				int xDistToEnemy =  footman.getXPosition() - enemy.getXPosition();
-    				int yDistToEnemy = footman.getYPosition() - enemy.getYPosition();
+    				int yDistToEnemy = footman.getYPosition() - enemy.getYPosition(); 
     				//Direction a = ((DirectedAction)action).direction
     				//not sure how to find the direction of a move. but if the move direction is south 
     				//and yDist is negative, add 3 to heuristic. similar logic for xDist
     			}
-    		}
-    	}
+    		} */
+    	} 
     	//insertion sort that uses the heuristic values to sort the list
     	for (int j = 1; j < children.size(); j++) {
-    		Integer val = heuristic.get(j);
+    		Integer val = heuristic.get(j).getVal();
     		int k = j;
-    		while (k > 1 && val < heuristic.get(k-1)) {
-    			heuristic.set(k, heuristic.get(k - 1));
-    			children.set(k, children.get(--k));
+    		while (k > 1 && val < heuristic.get(k-1).getVal()) {
+    			children.set(k, children.get(k - 1));
+    			heuristic.get(k).setVal(heuristic.get(--k).getVal());
     		}
-    		heuristic.set(k, val);
     		children.set(k, children.get(j));
     	}
+    }
     	return children;
     }
     //added to pair heuristic to child, which will enable sorting 
     public class HeuristicChildPair{
-    	public int heuristic;
-    	public GameStateChild child;
+    	int heuristic;
+    	GameStateChild child;
     	public HeuristicChildPair(int heuristic, GameStateChild child) {
+    		
     		this.heuristic = heuristic;
     		this.child = child;
+    	}
+    	
+    	public int getVal() {
+    		return heuristic;
+    	}
+    	
+    	public void incrVal(int val) {
+    		heuristic += val;
+    	}
+    	public void setVal(int val) {
+    		heuristic = val;
     	}
     	public int compareTo(HeuristicChildPair h) {
     		if (h.heuristic < this.heuristic)
@@ -203,6 +252,7 @@ public class MinimaxAlphaBeta extends Agent {
     	}
     	return optimalPaths;
     }
+    
     public class AStarSearcher {
     	Stack<MapLocation> path = new Stack<MapLocation>();    	  
     	public Stack<MapLocation> AstarSearch(int maxDepth, Stack<MapLocation> path, State.StateView state, MapLocation start, MapLocation goal, int xExtent, int yExtent){		  
@@ -225,7 +275,7 @@ public class MinimaxAlphaBeta extends Agent {
     	            		//skips positions that either don't exist or is current player position. 
     	            		if (nextposx < xExtent && nextposy < yExtent && !state.isResourceAt(nextposx, nextposy) 
     	            				&& nextposx > -1 && nextposy > -1) { 
-    	            			temp.cost = (float) MapLocation.calculateEuclidean(temp, goal) + current.cost; //f = g+h
+    	            			temp.cost = (float) MapLocation.calculateManhattan(temp, goal) + current.cost; //f = g+h
     	            			//if current has never been visited, or if cheaper than what's already visited
     	            			MapLocation hashVal = closed.get(temp.hashCode()); //tries to find temp in hash table
     	            			//adds to open list if temp is cheaper than other paths to temp in closed list
