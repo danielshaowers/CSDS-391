@@ -18,13 +18,13 @@ import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 	private boolean good = true;
 	private int turnNum;
 	
-	public FutureUnit (int xLoc, int yLoc, int id, int hp, int turnNum) {
+	public FutureUnit (int xLoc, int yLoc, int id, int hp, int turnNum, boolean good) {
 		x = xLoc;
 		y = yLoc;
 		this.id = id;
 		this.hp = hp;
 		this.turnNum = turnNum;
-		good = (turnNum % 2 == 0);
+		this.good = good;
 	}
 	
 	public int getTurn() {
@@ -35,8 +35,9 @@ import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 			this.hp = hp - damage;
 		}
 	}
+	//duplicates current values but increases turnNum by 1
 	public FutureUnit duplicate() {
-		return new FutureUnit(x, y, id, hp, turnNum);
+		return new FutureUnit(x, y, id, hp, turnNum + 1, good);
 	}
 	public void moved(Action move) {
 		if (move.getType().equals(ActionType.PRIMITIVEMOVE)) {

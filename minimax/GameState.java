@@ -4,6 +4,7 @@ import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.action.ActionType;
 import edu.cwru.sepia.action.DirectedAction;
 import edu.cwru.sepia.action.TargetedAction;
+import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.Template.TemplateView;
 import edu.cwru.sepia.environment.model.state.Unit;
@@ -61,7 +62,7 @@ public class GameState {
 	private double distanceFromBest =0;
 	private double allyDistance = 0;
 	private double enemyDistanceToEdge = 0;
-	private int turnNum = -1; //is there ANY continuity here?? how do things carry over between states?
+	private int turnNum = 0; //is there ANY continuity here?? how do things carry over between states?
 	private State.StateView state;
 	//private int playerNum = 0; //indicates which player's perspective (footman or archer) for the curr gamestate
 	private List<Integer> unitIDs = new ArrayList<Integer>();
@@ -69,8 +70,9 @@ public class GameState {
 	private ArrayList<Stack<MapLocation>> optimalPath = new ArrayList<Stack<MapLocation>>();
 	private HashMap<Integer, LinkedList<Integer>> inArrowRange = new HashMap<Integer, LinkedList<Integer>>(); //key is attacker, value is target 
 	private HashMap<Integer, LinkedList<Integer>> inMeleeRange = new HashMap<Integer, LinkedList<Integer>>(); //key is attacker, then target
-	private int unitHP = 0; 
-	private int enemyHP = 0;
+	private int unitHP = 0; //sum of footman healths
+	private int enemyHP = 0; //sum of enemy healths
+	private HashMap<Integer, FutureUnit> futureUnits = new HashMap<Integer, FutureUnit>();
 	public List<Integer> getUnitIDs() {
 		return unitIDs;
 	}
@@ -87,66 +89,108 @@ public class GameState {
 	public int getEnemyHP() {
 		return enemyHP;
 	}
+	
     public GameState(State.StateView state) { //changes the turn each time the constructor is called...?not sure if this is ideal
     	this.state = state;    	
     	Integer[] playerNums = state.getPlayerNumbers();
+    	futureUnits = new HashMap<Integer, FutureUnit>();
     	// get the footman location
         unitIDs = state.getUnitIds(playerNums[0]);
     	enemyUnitIDs = state.getUnitIds(playerNums[1]); //if we're 1, then they're 0
         int[] enemyDist;
+        for (Integer i : enemyUnitIDs) {
+        	UnitView unit = state.getUnit(i);
+        	futureUnits.put(unit.getID(), new FutureUnit(unit.getXPosition(), 
+    				unit.getYPosition(), unit.getID(), unit.getHP(), turnNum, false)); //should I always initialize to true?
+        	enemyHP += unit.getHP();
+        }
+        
     	for (int i = 0; i < unitIDs.size(); i++) {
     		UnitView unit = state.getUnit(unitIDs.get(i));
-    		unitHP += unit.getTemplateView().getBaseHealth();
-    		enemyDist = findEnemyDistances(state.getUnit(unitIDs.get(i)));
-    		
-    		enemyDistance += enemyDist[0] + enemyDist[2];
-    		for (int j = 0; j < enemyDist.length; j += 2) {
-    		if (enemyDist[j] <= state.getUnit(enemyUnitIDs.get(j)).getTemplateView().getRange()) {
-    			if (inArrowRange.get(enemyUnitIDs.get(i)) == null)
-    				inArrowRange.put(enemyUnitIDs.get(i), new LinkedList<Integer>());
-    			inArrowRange.get(enemyUnitIDs.get(i)).add(enemyDist[j]); //puts archer id, then target id
-    		}
-    		if (enemyDist[j] == 1) {
-    			if (inMeleeRange.get(unitIDs.get(i)) == null)
-    				inMeleeRange.put(unitIDs.get(i), new LinkedList<Integer>());
-    			inMeleeRange.get(unitIDs.get(i)).add(enemyDist[j]);
-    		}
-        }    	
-    	}
-    	turnNum = 1;    	
+    		futureUnits.put(unit.getID(), new FutureUnit(unit.getXPosition(), 
+    				unit.getYPosition(), unit.getID(), unit.getHP(), turnNum, true));
+    		unitHP += unit.getHP();
+    		enemyDist = findEnemyDistances(unit);
+			enemyDistance += Math.min(enemyDist[0], enemyDist[2]);
+			for (int j = 0; j < enemyDist.length; j += 2) {
+				Integer enemyID = enemyDist[j + 1];
+				if (enemyDist[j] != 10000 && enemyDist[j] <= state.getUnit(enemyID).getTemplateView().getRange()) {
+					if (inArrowRange.get(enemyID) == null)
+						inArrowRange.put(enemyID, new LinkedList<Integer>());
+					inArrowRange.get(enemyID).add(unit.getID()); //puts archer id, then target id
+				}
+				if (enemyDist[j] == 1) {
+					if (inMeleeRange.get(unit.getID()) == null)
+						inMeleeRange.put(unit.getID(), new LinkedList<Integer>());
+					inMeleeRange.get(unit.getID()).add(enemyID);
+				}
+			}    	
+    	}	
+    	allyDistance += calculateDistance(futureUnits.get(unitIDs.get(0)), futureUnits.get(unitIDs.get((1) % unitIDs.size())));
+    	
     }
     
-    public GameState(GameState gs, int turnNum) { //this doesn't work because the previous gs is of the other player
+    public GameState(GameState gs, HashMap<Integer, FutureUnit> fus) { //this doesn't work because the previous gs is of the other player
     	//it gets the new state when it's called in middle step. there's a chance
     	//that I would have to track the effects of actions (movement and attack) separately, otherwise state will never change, right?
     	this.state = gs.getState(); //is this state outdated?
-    	//this.turnNum = gs.getTurnNum();
-    	this.turnNum = turnNum;
-    	this.unitHP = gs.getUnitHP();
-    	this.enemyHP = gs.getEnemyHP();
+    	this.futureUnits = fus;
+    	int[] enemyDist;
     	Integer[] playerNums = state.getPlayerNumbers();
     	// get the footman location
-        unitIDs = state.getUnitIds(playerNums[0]);       
+    	List<Integer> allIDs = state.getAllUnitIds();
+    	unitIDs = state.getUnitIds(playerNums[0]);       
     	enemyUnitIDs = state.getUnitIds(playerNums[1]); //if we're 1, then they're 0
-        int[] nearestEnemy;
-    	for (int i = 0; i < unitIDs.size(); i++) {
-    		nearestEnemy = findEnemyDistances(state.getUnit(unitIDs.get(i)));
-    		enemyDistance += nearestEnemy[0];
-    		UnitView enemy = state.getUnit(enemyUnitIDs.get(0));
-    		if (nearestEnemy[0] <= enemy.getTemplateView().getRange()) {
-    			inArrowRange.put(nearestEnemy[1], unitIDs.get(i));
-    			unitHP = unitHP - enemy.getTemplateView().getBasicAttack(); //i think we're safe to assume this would happen
-    			if (nearestEnemy[0] == 1) {
-    				inMeleeRange.put(unitIDs.get(i), nearestEnemy[1]); 
-    				enemyHP = enemyHP - state.getUnit(unitIDs.get(0)).getTemplateView().getBasicAttack();
-    			}
-    		}
+    	for (int i = 0; i < allIDs.size(); i++) {   		
+    		Integer unitID = allIDs.get(i);
+    		FutureUnit unit = fus.get(unitID);
+    		allyDistance += calculateDistance(unit, futureUnits.get(unitIDs.get((i + 1) % unitIDs.size())));
+    		 
+    		turnNum = unit.getTurn();
+    	   	if (!unit.getGood())
+    	   		this.enemyHP+= unit.getHp();   
+    	  		else {
+    	 			this.unitHP += unit.getHp();    			
+    	  			enemyDist = findEnemyDistances(unit);
+    	   			enemyDistance += Math.min(enemyDist[0], enemyDist[2]);
+        			for (int j = 0; j < enemyDist.length; j += 2) {
+   	    				Integer enemyID = enemyDist[j + 1];
+   	    				if (enemyDist[j] != 10000 && enemyDist[j] <= state.getUnit(enemyID).getTemplateView().getRange()) {
+   	    					if (inArrowRange.get(enemyID) == null)
+   	    						inArrowRange.put(enemyID, new LinkedList<Integer>());
+   	    					inArrowRange.get(enemyID).add(enemyID); //puts archer id, then target id
+   	    				}
+   	    				if (enemyDist[j] == 1) {
+   	    					if (inMeleeRange.get(unitID) == null)
+   	    						inMeleeRange.put(unitID, new LinkedList<Integer>());
+   	    					inMeleeRange.get(unitID).add(enemyID);
+    	    				}
+    	    			}
+    	    		}
     	}
     }
+    
     //index 0: min distance of enemy1. index 1: id of enemy1. 
     //index 2: distance of enemy 2. index 3: id if 2nd enemy is in range. else 10000
+    public int[] findEnemyDistances(FutureUnit unit) {
+    	int[] distAndID = {10000, -1, 10000, -1};
+    	int i = 0;
+    	for (Integer enemyID: enemyUnitIDs) {    
+    		FutureUnit enemy = futureUnits.get(enemyID);
+    		enemyDistanceToEdge += Math.min(state.getXExtent() - enemy.getX(), enemy.getX());
+    		enemyDistanceToEdge += Math.min(state.getYExtent() - enemy.getY(), enemy.getY());
+    		distAndID[i++] =  calculateDistance(enemy, unit);
+    		distAndID[i++] = enemyID;
+    		System.out.println("distance from enemy is " + calculateDistance(enemy, unit));
+    	}
+    	return distAndID;
+    }
+    
+    public int calculateDistance(FutureUnit unit, FutureUnit enemy) {
+    	return Math.abs(unit.getX() - enemy.getX()) + Math.abs(unit.getY() - enemy.getY());
+    }
     public int[] findEnemyDistances(UnitView unit) {
-    	int[] distAndID = {10000, 10000, 10000, 10000};
+    	int[] distAndID = {10000, -1, 10000, -1};
     	int i = 0;
     	for (Integer enemyID: enemyUnitIDs) {    
     		UnitView enemy = state.getUnit(enemyID);
@@ -195,6 +239,9 @@ public class GameState {
     public MapLocation getLocation(UnitView dude) {
     	return new MapLocation(dude.getXPosition(), dude.getYPosition(), null, 0, 0);
     }
+    public MapLocation getLocation(FutureUnit dude) {
+    	return new MapLocation(dude.getX(), dude.getY(), null, 0, 0);
+    }
        
     public ArrayList<Stack<MapLocation>> getPath(){
     	return bestPath;
@@ -220,8 +267,10 @@ public class GameState {
     //if we could make this proportional to our unit health that'd be dope. find if in range and how much damage they do
     public double getUtility() { //health? distance to enemy #1 priority. closeness to Astar path? out of range
     	//heuristic distance. maybe A* path length, outside of path range, near a corner. far from other footman
-        return (turnNum % 2 * -1) * (enemyDistanceToEdge/(4 * enemyDistance - 
-        		allyDistance - 4 * distanceFromBest)) ;
+        return   (enemyDistanceToEdge - 10 * enemyDistance + unitHP - 100 * enemyHP + 0.5 * allyDistance);
+        //might even want some simulated annealing?
+    	//return (-enemyDistance);
+        //(turnNum % 2 * -1) do we need to do this or is it accounted for elsewhere. elsewhere
     }
 
     /**
@@ -270,32 +319,62 @@ public class GameState {
     		movers = enemyUnitIDs;
     	Stack<HashMap<Integer, Action>> actionMaps = possibleMoves(movers);
     	while (actionMaps.size() != 0) {
-    		children.add(new GameStateChild(actionMaps.pop(), new GameState(this, turnNum + 1)));
+    		HashMap<Integer, Action> actions = actionMaps.pop(); //set of actions taken to reach a new state
+    		HashMap<Integer, FutureUnit> nextState = new HashMap<Integer, FutureUnit>(); //new list of future units
+    		FutureUnit fu;
+    		for (Integer id : state.getAllUnitIds()) {
+    			if (actions.get(id) != null) {
+    				if(actions.get(id).getType().equals(ActionType.PRIMITIVEATTACK)) {
+    					nextState.put(id, futureUnits.get(id).duplicate()); //add attacker
+    					TargetedAction ta = (TargetedAction)actions.get(id); 
+    					fu = futureUnits.get(ta.getTargetId()).duplicate();
+    					//update health of attacked unit
+    					fu.attacked(actions.get(id), state.getUnit(unitIDs.get(0)).getTemplateView().getBasicAttack());	
+    					
+    					if (fu.getHp() > 0)
+    						nextState.put(fu.getId(), fu); //add attacked if not dead
+    				}
+    				//if the action is a move, update the futureUnit's location
+    				if (actions.get(id).getType().equals(ActionType.PRIMITIVEMOVE)) {
+    					fu = futureUnits.get(id).duplicate();
+    					fu.moved(actions.get(id));
+    					nextState.put(id, fu);
+    				}
+    			}
+    			else  //add units that don't have actions too!
+    				nextState.put(id, futureUnits.get(id).duplicate());
+    		}
+    		children.add(new GameStateChild(actions, new GameState(this, nextState)));
     	}
-    	System.out.println("children added?" + children.size() + "\n turn num: " + turnNum);
         return children;
     }
+    //takes a list of ids that are our current movers
     public Stack<HashMap<Integer, Action>> possibleMoves(List<Integer> ids){
-    	List<Action> allActions = allActions(ids.get(0));
+    	
     	Stack<HashMap<Integer, Action>> fullList = new Stack<HashMap<Integer, Action>>();
     	HashMap<Integer, Action> moves = new HashMap<Integer, Action>();
-    	int id = ids.get(1); 
-   		for (Action action: allActions) {
-   			if (ids.size() == 1) {
-   				moves = new HashMap<Integer, Action>();
-   				moves.put(id, action);
-   				fullList.push(moves);
-   			}
-   			else {
-   				List<Action> allActions2 = allActions(id);
-   				for (Action action2: allActions2) {
-   					moves = new HashMap<Integer, Action>();
-    				moves.put(id, action);
-    				moves.put(ids.get(1), action2);
-    				fullList.push(moves);
-   				}
-   			}
-    }
+    	Integer id = ids.get(0);
+    	List<Action> allActions = allActions(id);
+    	for (Action action: allActions) {
+    		if (ids.size() == 1) {
+    			moves = new HashMap<Integer, Action>(); //reset moves list every time
+    			moves.put(id, action);
+    			fullList.push(moves);
+    		}
+    		else {
+    	 		if (ids.size() == 2) {
+    	 			Integer id2 = ids.get(1);
+    	 			List<Action> allActions2 = allActions(id2);
+    	 			for (Action action2: allActions2) {
+    	 				moves = new HashMap<Integer, Action>();
+    	 				moves.put(id, action);
+    	 				moves.put(id2, action2);
+    	 				fullList.push(moves);
+    	 			}
+    	 		}
+    		}
+    		
+    	}
    		return fullList;
     }
     //could probably do some recursive shit but i dont want to
@@ -309,14 +388,20 @@ public class GameState {
                 int nextposy = unit.getYPosition() + direction.yComponent();
                 if (nextposx <= state.getXExtent() && nextposy <= state.getYExtent() && 
                 		!state.isResourceAt(nextposx, nextposy) && nextposx > -1
-                		&& nextposy > -1 &&!state.hasUnit(nextposx, nextposy))  
+                		&& nextposy > -1 &&!state.hasUnit(nextposx, nextposy)) {  
                 			move.add(Action.createPrimitiveMove(id, direction));
-                //THIS DOESNT WORK. ID IS THE MOVER. 
+                }
                 if (turnNum % 2 == 1 && inArrowRange.get(id) != null) { //implies the unit is an archer and enemy is in range
-                	move.add(Action.createPrimitiveAttack(id, inArrowRange.get(id)));
+                	for (Integer target: inArrowRange.get(id)) {
+                		System.out.println("archer target is " + target);
+                		move.add(Action.createPrimitiveAttack(id, target));
+                	}
                 }
                 if (turnNum % 2 == 0 && inMeleeRange.get(id) != null) { //implies the unit is a footman and enemy is in range
-                	move.add(Action.createPrimitiveAttack(id, inMeleeRange.get(id)));
+                	for (Integer target: inMeleeRange.get(id)) {
+                		System.out.println("melee target is " + target);
+                		move.add(Action.createPrimitiveAttack(id, target));
+                	}
                 }
     		}
     	}
