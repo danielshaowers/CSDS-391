@@ -82,6 +82,7 @@ public class GameState {
 	private double distanceFromBest =0;
 	private double allyDistance = 0;
 	private double enemyDistanceToEdge = 0;
+	private int blockedpath=0;
 	private int turnNum = 0; //is there ANY continuity here?? how do things carry over between states?
 	private State.StateView state;
 	//private int playerNum = 0; //indicates which player's perspective (footman or archer) for the curr gamestate
@@ -98,6 +99,31 @@ public class GameState {
 	public List<Integer> getUnitIDs() {
 		return unitIDs;
 	}
+	 public int[] blockedPath(FutureUnit unit, int[] distAndID) {
+	    	int[] nextStep = {unit.getX(), unit.getY()}; //x and y of next step;
+	    	FutureUnit target = futureUnits.get(distAndID[1]); //UnitView of nearest enemy
+	    	while (!state.isResourceAt(nextStep[0], nextStep[1])) {
+	    		if (target.getX() < nextStep[0]) {
+	    			nextStep[0] = nextStep[0] - 1;
+	    			continue;
+	    		}
+	    		if (target.getX() > nextStep[0]) {
+	    			nextStep[0] = nextStep[0] + 1;
+	    			continue;
+	    		}
+	    		if (target.getY() < nextStep[1]) {
+	    			nextStep[1] = nextStep[1] - 1;
+	    			continue;
+	    		}
+	    		if (target.getY() > nextStep[1])
+	    			nextStep[1] = nextStep[1] + 1;
+	    		
+	    		if (nextStep[0] == target.getX() && nextStep[1] == target.getY())
+	    			return null;
+	    	}
+	    //	System.out.println("blocked path at " + nextStep[0] + "," + nextStep[1] + "for unit at " + unit.getX() + "," + unit.getY());
+	    	return nextStep;
+	    }  
 	public List<Integer> getEnemyUnitIDs() {
 		return enemyUnitIDs;
 	}
@@ -116,7 +142,6 @@ public class GameState {
     	this.state = state;    	
     	Integer[] playerNums = state.getPlayerNumbers();
     	futureUnits = new HashMap<Integer, FutureUnit>();
-
     	unitIDs = state.getUnitIds(playerNums[0]);
     	enemyUnitIDs = state.getUnitIds(playerNums[1]); //if we're 1, then they're 0
         int[] enemyDist;
@@ -199,29 +224,33 @@ public class GameState {
    	    						inMeleeRange.put(unitID, new LinkedList<Integer>());
    	    					inMeleeRange.get(unitID).add(enemyID); //key is footman and value is archer 
     	    				}
-    	    			}
-    	   	if (Math.ceil(turnNum/2) < optimalPaths.get(count).length) { //if there are still steps to reach optimal path
-    				distanceFromBest += Math.abs(unit.getX() - nextBestSpot[count].x) + Math.abs(unit.getY() - nextBestSpot[count++].y);	
-    	   			if (unit.getTurn() == 3) {
-    	   		}}
-    	  		}
-    		}
-    	//System.out.println("NEXT BEST SPOT IS " + nextBestSpot[count - 1].x + "," + nextBestSpot[count - 1].y);
-	  	
-    	//System.out.println("TURN NUM IS " + turnNum + " at best spot " + nextBestSpot[count - 1].x + "," + nextBestSpot[count - 1].y);
-	  	    	allyDistance += calculateDistance(futureUnits.get(unitIDs.get(0)), futureUnits.get(unitIDs.get((1 % unitIDs.size())))); //gets Manhattan distance  		
+    	    			}             	
+    	   	if (Math.ceil(turnNum/2) < optimalPaths.get(count).length - 1) { //if there are still steps to reach optimal path
+    	   		distanceFromBest += Math.abs(unit.getX() - nextBestSpot[count].x) + Math.abs(unit.getY() - nextBestSpot[count++].y);	
+    	   	}
+    	   	else {
+    	   		int[] blocked = blockedPath(unit, enemyDist);
+    	   		if (blocked != null) {
+    	   			blockedpath++;
+    	   		}
+    	   	}
+    	  }
     	}
-    	if (turnNum == 5) {
+    		allyDistance += calculateDistance(futureUnits.get(unitIDs.get(0)), futureUnits.get(unitIDs.get((1 % unitIDs.size())))); //gets Manhattan distance  		
+    	
+    	}
+    /*	if (turnNum == 5) {
     	int inSpot = 0; int i = 0;
 		for (Integer myUnits: unitIDs) {
 			FutureUnit dude = fus.get(myUnits);
-			if (dude.getX() == nextBestSpot[i].x && dude.getY() == nextBestSpot[i++].y)
-				inSpot++;
+			if (dude != null)
+				if (dude.getX() == nextBestSpot[i].x && dude.getY() == nextBestSpot[i++].y)
+					inSpot++;
 		}
 		if (inSpot == 2) {
 			System.out.println("Found optimal spot with utility" + getUtility() + "\nat location " + nextBestSpot[0].x + ", " + nextBestSpot[0].y);
 		}
-    	}
+    	}*/
     }
 
     //index 0: nearest enemy distance. index 1: id of nearest enemy. 
@@ -250,6 +279,7 @@ public class GameState {
     public int calculateDistance(FutureUnit unit, FutureUnit unit2) {
     	return Math.abs(unit.getX() - unit2.getX()) + Math.abs(unit.getY() - unit2.getY());
     }
+    
     
     public int[] findEnemyDistances(UnitView unit) {
     	int[] distAndID = {10000, -1, 10000, -1};
@@ -319,9 +349,11 @@ public class GameState {
         if (allyDistance == 1)  //we dont like it when the units are adjacent because it leads to them getting stuck
         	utility -= 20;
         utility -= allyDistance; //we like it when our allies are close
-        */utility -= distanceFromBest * 1000;
-       // utility += enemyDistanceToEdge + unitHP - 10 * enemyHP - 10 * howclose - 10 * enemyDistance;
-    	//utility =   (enemyDistanceToEdge - 10 * enemyDistance + unitHP - 100 * enemyHP + 0.5 * allyDistance -howclose*3);
+       
+        */utility += -distanceFromBest * 1000 - blockedpath * 20; //one of these will be 0
+       utility += 10 * -enemyDistance;
+        		// utility += enemyDistanceToEdge + unitHP - 10 * enemyHP - 10 * howclose - 10 * enemyDistance;
+    	utility += (int)(enemyDistanceToEdge + unitHP - 100 * enemyHP + 0.5 * allyDistance);
         return utility;
     	//might even want some simulated annealing?
     	//return (-enemyDistance);
@@ -376,7 +408,7 @@ public class GameState {
     	Stack<HashMap<Integer, Action>> actionMaps = possibleMoves(movers);
     	MapLocation[] nextSpots = new MapLocation[2];
     	for (int i = 0; i < unitIDs.size(); i++) {
-    		if (optimalPaths.get(i).length >= Math.ceil(turnNum / 2)) { //gets the ideal spot for our units
+    		if (optimalPaths.get(i).length - 1 >= Math.ceil(turnNum / 2)) { //gets the ideal spot for our units
 				nextSpots[i] = optimalPaths.get(i)[(int)Math.ceil(turnNum/ 2)]; //used to be turnNum + 1
     		}
     	}
@@ -439,7 +471,36 @@ public class GameState {
     	}
    		return fullList;
     }
-    //could probably do some recursive shit but i dont want to
+    
+    public List<Action> allActions(Integer id) {
+    	List<Action> move = new ArrayList<Action>();
+    	for (Direction direction : Direction.values()) {               
+    		if (direction.equals(Direction.NORTH) || direction.equals(Direction.EAST) ||
+                direction.equals(Direction.SOUTH) || direction.equals(Direction.WEST)) {
+                FutureUnit unit = futureUnits.get(id);
+                int nextposx = unit.getX() + direction.xComponent();
+                int nextposy = unit.getY() + direction.yComponent();
+                if (nextposx <= state.getXExtent() && nextposy <= state.getYExtent() && 
+                		!state.isResourceAt(nextposx, nextposy) && nextposx > -1
+                		&& nextposy > -1 && !state.isUnitAt(nextposx, nextposy)) {  
+                			move.add(Action.createPrimitiveMove(id, direction));
+                }
+                if (turnNum % 2 == 1 && inArrowRange.get(id) != null) { //implies the unit is an archer and enemy is in range
+                	for (Integer target: inArrowRange.get(id)) {
+                		move.add(Action.createPrimitiveAttack(id, target));
+                	}
+                }
+                if (turnNum % 2 == 0 && inMeleeRange.get(id) != null) { //implies the unit is a footman and enemy is in range
+                	for (Integer target: inMeleeRange.get(id)) {
+                		move.add(Action.createPrimitiveAttack(id, target));
+                	}
+                }
+    		}
+    	}
+    	return move; 
+    }
+    /*
+
     public List<Action> allActions(Integer id){
     	List<Action> move = new ArrayList<Action>();
     	for (Direction direction : Direction.values()) {               
@@ -467,25 +528,26 @@ public class GameState {
     	}
     	return move;
     }
+    */
+    
     
     public MapLocation[] getOptimalPath(State.StateView state, Integer unitID, Integer enemyUnitID) {   	
     	AStarSearcher search = new AStarSearcher();
     	Stack<MapLocation> optimalPath = new Stack<MapLocation>();
     	optimalPath.clear();
 
-    		UnitView footman = state.getUnit(unitID);  
-    		UnitView archer = state.getUnit(enemyUnitID);
+    		FutureUnit footman = futureUnits.get(unitID);  
+    		FutureUnit archer = futureUnits.get(enemyUnitID);
     		
-    		MapLocation start = new MapLocation(footman.getXPosition(), footman.getYPosition(), null, 0, 0);
-    		MapLocation goal = new MapLocation(archer.getXPosition(), archer.getYPosition(), null, 0, 0);
+    		MapLocation start = new MapLocation(footman.getX(), footman.getY(), null, 0, 0);
+    		MapLocation goal = new MapLocation(archer.getX(), archer.getY(), null, 0, 0);
     		optimalPath = (search.AstarSearch(search.path, state, start, goal, state.getXExtent(), state.getYExtent()));
     	
     	MapLocation[] optimalPath2 = new MapLocation[optimalPath.size() + 1];
-    	optimalPath2[0] = optimalPath.peek(); //I think we skip the first point
     	for (int i = 0; optimalPath.size() > 0; i++) {
     		//we want it to be ahead by 1. at turn0, we want to show them the optimal path at move 1
     		optimalPath2[i] = optimalPath.pop();
-    		System.out.println(optimalPath2[i].x + "," + optimalPath2[i].y);
+    //		System.out.println(optimalPath2[i].x + "," + optimalPath2[i].y);
     	}
     	return optimalPath2; 
     }

@@ -55,9 +55,9 @@ public class MinimaxAlphaBeta extends Agent {
 	                Double.POSITIVE_INFINITY); //returns the best child found from alphaBetaSearch
 	        System.out.println("-------------------middle step executed--------------------------");
 	        List<Integer> players = newstate.getUnitIds(playernum);
-	        for(Integer id: players)
-	        	System.out.println("UNIT " + id + "moves from " + newstate.getUnit(id).getXPosition() + "," + newstate.getUnit(id).getYPosition() + ((DirectedAction)bestChild.action.get(id)).getDirection());
-	        System.out.println("Utility of move is " + bestChild.state.getUtility());
+	        //for(Integer id: players)
+	        	//System.out.println("UNIT " + id + "moves from " + newstate.getUnit(id).getXPosition() + "," + newstate.getUnit(id).getYPosition() + ((DirectedAction)bestChild.action.get(id)).getDirection());
+	        //System.out.println("Utility of move is " + bestChild.state.getUtility());
 	        return bestChild.action;
 	    }
 
