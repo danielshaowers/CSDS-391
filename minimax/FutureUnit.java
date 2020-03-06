@@ -114,14 +114,13 @@ import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 	private int turnNum;
 	ArrayList<MapLocation[]> optimalPath;
 	
-	public FutureUnit (int xLoc, int yLoc, int id, int hp, int turnNum, boolean good, ArrayList<MapLocation[]> optimalPaths) {
+	public FutureUnit (int xLoc, int yLoc, int id, int hp, int turnNum, boolean good) {
 		x = xLoc;
 		y = yLoc;
 		this.id = id;
 		this.hp = hp;
 		this.turnNum = turnNum;
 		this.good = good;
-		optimalPath = optimalPaths; 
 	}
 	
 
@@ -135,14 +134,14 @@ import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 	}
 	//duplicates current values but increases turnNum by 1
 	public FutureUnit duplicate() {
-		return new FutureUnit(x, y, id, hp, turnNum + 1, good,optimalPath);
+		return new FutureUnit(x, y, id, hp, turnNum + 1, good);
 	}
 	public void moved(Action move) {
-		if (move.getType().equals(ActionType.PRIMITIVEMOVE)) {
+		//if (move.getType().equals(ActionType.PRIMITIVEMOVE)) {
 			DirectedAction da = (DirectedAction) move;
 			x = x + da.getDirection().xComponent();
 			y = y + da.getDirection().yComponent();
-		}
+		//}
 	}
 	
 	@Override

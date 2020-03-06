@@ -83,12 +83,13 @@ public class GameState {
 	private double allyDistance = 0;
 	private double enemyDistanceToEdge = 0;
 	private int blockedpath=0;
-	private int turnNum = 0; //is there ANY continuity here?? how do things carry over between states?
+	private int turnNum = 0; 
 	private State.StateView state;
 	//private int playerNum = 0; //indicates which player's perspective (footman or archer) for the curr gamestate
 	private List<Integer> unitIDs = new ArrayList<Integer>();
 	private List<Integer> enemyUnitIDs = new ArrayList<Integer>();
 	private ArrayList<MapLocation[]> optimalPaths = new ArrayList<MapLocation[]>();
+	private HashMap<Integer, int[]> nearestEnemies = new HashMap<Integer, int[]>();
 	private HashMap<Integer, LinkedList<Integer>> inArrowRange = new HashMap<Integer, LinkedList<Integer>>(); //key is attacker, value is target 
 	private HashMap<Integer, LinkedList<Integer>> inMeleeRange = new HashMap<Integer, LinkedList<Integer>>(); //key is attacker, then target
 	private int unitHP = 0; //sum of footman healths
@@ -99,31 +100,58 @@ public class GameState {
 	public List<Integer> getUnitIDs() {
 		return unitIDs;
 	}
-	 public int[] blockedPath(FutureUnit unit, int[] distAndID) {
+	
+	/* public int[] blockedPath(FutureUnit unit, int[] distAndID) {
 	    	int[] nextStep = {unit.getX(), unit.getY()}; //x and y of next step;
-	    	FutureUnit target = futureUnits.get(distAndID[1]); //UnitView of nearest enemy
+	    	//FutureUnit target = futureUnits.get(distAndID[1]); //id of nearest enemy
+	    	UnitView target = state.getUnit(distAndID[1]);
 	    	while (!state.isResourceAt(nextStep[0], nextStep[1])) {
-	    		if (target.getX() < nextStep[0]) {
+	    		if (target.getXPosition() < nextStep[0]) {
 	    			nextStep[0] = nextStep[0] - 1;
 	    			continue;
 	    		}
-	    		if (target.getX() > nextStep[0]) {
+	    		if (target.getXPosition() > nextStep[0]) {
 	    			nextStep[0] = nextStep[0] + 1;
 	    			continue;
 	    		}
-	    		if (target.getY() < nextStep[1]) {
+	    		if (target.getYPosition() < nextStep[1]) {
 	    			nextStep[1] = nextStep[1] - 1;
 	    			continue;
 	    		}
-	    		if (target.getY() > nextStep[1])
+	    		if (target.getYPosition() > nextStep[1])
 	    			nextStep[1] = nextStep[1] + 1;
-	    		
-	    		if (nextStep[0] == target.getX() && nextStep[1] == target.getY())
+	    		//stops if we find a path to the target
+	    		if (nextStep[0] == target.getXPosition() && nextStep[1] == target.getYPosition()) {
+	    			System.out.println("NO BLOCKED PATH WHEN AT " + unit.getX() + "," + unit.getY());
+	
 	    			return null;
+	    			}
 	    	}
-	    //	System.out.println("blocked path at " + nextStep[0] + "," + nextStep[1] + "for unit at " + unit.getX() + "," + unit.getY());
+	    	nextStep[0] = unit.getX();
+	    	nextStep[1] = unit.getY();
+	    	//if there is a blocked path, we perform another search moving in the y direction first
+	    	while (!state.isResourceAt(nextStep[0], nextStep[1])) {
+	    		if (target.getYPosition() < nextStep[1]) {
+	    			nextStep[1] = nextStep[1] - 1;
+	    			continue;
+	    		}
+	    		if (target.getYPosition() > nextStep[1])
+	    			nextStep[1] = nextStep[1] + 1;
+	    		if (target.getXPosition() < nextStep[0]) {
+	    			nextStep[0] = nextStep[0] - 1;
+	    			continue;
+	    		}
+	    		if (target.getXPosition() > nextStep[0]) {
+	    			nextStep[0] = nextStep[0] + 1;
+	    			continue;
+	    		}
+	    		if (nextStep[0] == target.getXPosition() && nextStep[1] == target.getYPosition()) {
+	    			return null;
+	    		}
+	    	} 
 	    	return nextStep;
 	    }  
+	 */
 	public List<Integer> getEnemyUnitIDs() {
 		return enemyUnitIDs;
 	}
@@ -148,15 +176,16 @@ public class GameState {
         for (Integer i : enemyUnitIDs) {
         	UnitView unit = state.getUnit(i);
         	futureUnits.put(unit.getID(), new FutureUnit(unit.getXPosition(),
-        			unit.getYPosition(), unit.getID(), unit.getHP(), turnNum, false, optimalPaths)); //should I always initialize to true?
+        			unit.getYPosition(), unit.getID(), unit.getHP(), turnNum, false)); //should I always initialize to true?
         	enemyHP += unit.getHP();
+        	enemyDistanceToEdge += Math.min(state.getXExtent() - unit.getXPosition(), unit.getXPosition());
+    		enemyDistanceToEdge += Math.min(state.getYExtent() - unit.getYPosition(), unit.getYPosition());	  
         }
     	for (int i = 0; i < unitIDs.size(); i++) {
     		UnitView unit = state.getUnit(unitIDs.get(i));
     		futureUnits.put(unit.getID(), new FutureUnit(unit.getXPosition(), 
-    				unit.getYPosition(), unit.getID(), unit.getHP(), turnNum, true,optimalPaths));	
-    		enemyDist = findEnemyDistances(unit);
-    		
+    				unit.getYPosition(), unit.getID(), unit.getHP(), turnNum, true));	
+    		enemyDist = findEnemyDistances(futureUnits.get(unitIDs.get(i)));
     		//optimal path from our unit to nearest enemy
         	optimalPaths.add(i, getOptimalPath(state, unitIDs.get(i), enemyDist[1]));
 			enemyDistance += enemyDist[0];
@@ -166,6 +195,7 @@ public class GameState {
 				if (enemyDist[j] != 10000 && enemyDist[j] <= state.getUnit(enemyID).getTemplateView().getRange()) {
 					if (inArrowRange.get(enemyID) == null)
 						inArrowRange.put(enemyID, new LinkedList<Integer>());
+					
 					inArrowRange.get(enemyID).add(unit.getID()); //puts archer id, then target id
 				}
 				if (enemyDist[j] == 1) {
@@ -175,8 +205,7 @@ public class GameState {
 				}
 			}    	
     	}
-    	
-    	allyDistance += calculateDistance(futureUnits.get(unitIDs.get(0)), futureUnits.get(unitIDs.get((1) % unitIDs.size())));
+    	allyDistance += calculateDistance(futureUnits.get(unitIDs.get(0)), futureUnits.get(unitIDs.get(1 % unitIDs.size())));
     	
     }
 
@@ -189,6 +218,7 @@ public class GameState {
     	enemyDistanceToEdge = 0;
     	unitHP = 0;
     	enemyHP = 0;
+    	blockedpath = 0;
     	inArrowRange.clear();
     	inMeleeRange.clear();
     	this.state = gs.getState(); //is this state outdated?
@@ -206,12 +236,15 @@ public class GameState {
     		FutureUnit unit = fus.get(unitID);
     		if (unit != null) { 					//checks to see if unit died
     		turnNum = unit.getTurn();
-    	   	if (!unit.getGood()) //if unit is NOT a part of team awesome, gets health units
-    	   		this.enemyHP+= unit.getHp();   
+    	   	if (!unit.getGood()) { //if unit is NOT a part of team awesome, gets health units
+    	   		this.enemyHP+= unit.getHp();
+    	   		enemyDistanceToEdge += Math.min(state.getXExtent() - unit.getX(), unit.getX());
+        		enemyDistanceToEdge += Math.min(state.getYExtent() - unit.getY(), unit.getY());
+    	   	}
     	  		else {
-    	 			this.unitHP += unit.getHp();    			
+    	 			this.unitHP += unit.getHp(); 
     	  			enemyDist = findEnemyDistances(unit); //returns an array of distance between team Awesome unit and and enemy unit, next index is enemy id 
-    	   			enemyDistance += Math.min(enemyDist[0], enemyDist[2]); 
+    	   			enemyDistance += enemyDist[0]; 
         			for (int j = 0; j < enemyDist.length; j += 2) { //goes through all the enemy units
    	    				Integer enemyID = enemyDist[j + 1];
    	    				if (enemyDist[j] != 10000 && enemyDist[j] <= state.getUnit(enemyID).getTemplateView().getRange()) { //if there is an enemy attacker and they are within range
@@ -225,34 +258,27 @@ public class GameState {
    	    					inMeleeRange.get(unitID).add(enemyID); //key is footman and value is archer 
     	    				}
     	    			}             	
-    	   	if (Math.ceil(turnNum/2) < optimalPaths.get(count).length - 1) { //if there are still steps to reach optimal path
-    	   		distanceFromBest += Math.abs(unit.getX() - nextBestSpot[count].x) + Math.abs(unit.getY() - nextBestSpot[count++].y);	
-    	   	}
-    	   	else {
-    	   		int[] blocked = blockedPath(unit, enemyDist);
-    	   		if (blocked != null) {
-    	   			blockedpath++;
-    	   		}
+        		if (nextBestSpot[count] != null)
+        			distanceFromBest += Math.abs(unit.getX() - nextBestSpot[count].x) + Math.abs(unit.getY() - nextBestSpot[count++].y);	
+    	   //	else {
+    	 //  		int[] blocked = blockedPath(unit, enemyDist); //check if 
+    	   //		if (blocked != null) {
+    	   	//		System.out.println("BLCOKED PATH when at " + unit.getX() + ", " + unit.getY());
+    	   		//	blockedpath++;
+    	   		//}
     	   	}
     	  }
     	}
-    		allyDistance += calculateDistance(futureUnits.get(unitIDs.get(0)), futureUnits.get(unitIDs.get((1 % unitIDs.size())))); //gets Manhattan distance  		
+    	//}	
+    	allyDistance += calculateDistance(futureUnits.get(unitIDs.get(0)), futureUnits.get(unitIDs.get((1 % unitIDs.size())))); //gets Manhattan distance  		
     	
-    	}
-    /*	if (turnNum == 5) {
-    	int inSpot = 0; int i = 0;
-		for (Integer myUnits: unitIDs) {
-			FutureUnit dude = fus.get(myUnits);
-			if (dude != null)
-				if (dude.getX() == nextBestSpot[i].x && dude.getY() == nextBestSpot[i++].y)
-					inSpot++;
-		}
-		if (inSpot == 2) {
-			System.out.println("Found optimal spot with utility" + getUtility() + "\nat location " + nextBestSpot[0].x + ", " + nextBestSpot[0].y);
-		}
-    	}*/
     }
-
+    public HashMap<Integer, FutureUnit> getFutureUnits(){
+    	return futureUnits;
+    }
+    public HashMap<Integer, int[]> getNearestEnemy(){
+    	return nearestEnemies;
+    }
     //index 0: nearest enemy distance. index 1: id of nearest enemy. 
     //index 2: distance of enemy 2. index 3: id if 2nd enemy is in range. else 10000
     public int[] findEnemyDistances(FutureUnit unit) {
@@ -260,8 +286,6 @@ public class GameState {
     	int i = 0;
     	for (Integer enemyID: enemyUnitIDs) {    
     		FutureUnit enemy = futureUnits.get(enemyID);
-    		enemyDistanceToEdge += Math.min(state.getXExtent() - enemy.getX(), enemy.getX());
-    		enemyDistanceToEdge += Math.min(state.getYExtent() - enemy.getY(), enemy.getY());
     		distAndID[i++] =  calculateDistance(enemy, unit);
     		distAndID[i++] = enemyID;
     	} //sets the minimum distance at position 0 and nearest enemy at position 1
@@ -273,6 +297,7 @@ public class GameState {
     		distAndID[2] = min;
     		distAndID[3] = minID;
     	}
+    	nearestEnemies.put(unit.getId(), distAndID);
     	return distAndID;
     }
     //gives Manhattan distance between two units
@@ -281,34 +306,9 @@ public class GameState {
     }
     
     
-    public int[] findEnemyDistances(UnitView unit) {
-    	int[] distAndID = {10000, -1, 10000, -1};
-    	int i = 0;
-    	for (Integer enemyID: enemyUnitIDs) {    
-    		UnitView enemy = state.getUnit(enemyID);
-    		enemyDistanceToEdge += Math.min(state.getXExtent() - enemy.getXPosition(), enemy.getXPosition());
-    		enemyDistanceToEdge += Math.min(state.getYExtent() - enemy.getYPosition(), enemy.getYPosition());
-    		distAndID[i++] =  MapLocation.calculateManhattan(getLocation(unit), getLocation(state.getUnit(enemyID)));   	;
-    		distAndID[i++] = enemyID;
-    	}
-    	if (distAndID[0] > distAndID[2]) {
-    		int min = distAndID[0];
-    		distAndID[0] = distAndID[2];
-    		distAndID[2] = min;
-    		//swap distances and IDs
-       		int minID = distAndID[1];
-    		distAndID[1] = distAndID[3];
-    		distAndID[3] = minID;
-    	}
-    	return distAndID;
-    }
-    
     public int getPlayerNum() {
     	return 0;
     }
-   /* public void changeTurn() {
-    	playerNum = (playerNum + 1) % 2;
-    }*/
     public State.StateView getState(){
     	return state;
     }
@@ -323,85 +323,23 @@ public class GameState {
     public ArrayList<Stack<MapLocation>> getPath(){
     	return bestPath;
     }
-    /**
-     * You will implement this function.
-     *
-     * You should use weighted linear combination of features.
-     * The features may be primitives from the state (such as hp of a unit)
-     * or they may be higher level summaries of information from the state such
-     * as distance to a specific location. Come up with whatever features you think
-     * are useful and weight them appropriately.
-     *
-     * It is recommended that you start simple until you have your algorithm working. Then watch
-     * your agent play and try to add features that correct mistakes it makes. However, remember that
-     * your features should be as fast as possible to compute. If the features are slow then you will be
-     * able to do less plys in a turn.
-     *
-     * Add a good comment about what is in your utility and why you chose those features.
-     *
-     * @return The weighted linear combination of the features
-     */
+    
     //if we could make this proportional to our unit health that'd be dope. find if in range and how much damage they do
     public double getUtility() { //health? distance to enemy #1 priority. closeness to Astar path? out of range
     	//heuristic distance. maybe A* path length, outside of path range, near a corner. far from other footman
         int utility = 0;
-        /*System.out.println("allyDistance " + allyDistance);
-        if (allyDistance == 1)  //we dont like it when the units are adjacent because it leads to them getting stuck
-        	utility -= 20;
-        utility -= allyDistance; //we like it when our allies are close
+        
+      //  if (allyDistance == 1)  //we dont like it when the units are adjacent because it leads to them getting stuck
+        //	utility -= 20;
        
-        */utility += -distanceFromBest * 1000 - blockedpath * 20; //one of these will be 0
-       utility += 10 * -enemyDistance;
-        		// utility += enemyDistanceToEdge + unitHP - 10 * enemyHP - 10 * howclose - 10 * enemyDistance;
-    	utility += (int)(enemyDistanceToEdge + unitHP - 100 * enemyHP + 0.5 * allyDistance);
-        return utility;
-    	//might even want some simulated annealing?
-    	//return (-enemyDistance);
-        //(turnNum % 2 * -1) do we need to do this or is it accounted for elsewhere. elsewhere
+       utility += -distanceFromBest * 10; 
+       utility += 5 * -enemyDistance;
+       utility += (int)(enemyDistanceToEdge + unitHP - 1000 * enemyHP - allyDistance); 
+       return utility;
     }
 
-    /**
-     * You will implement this function.
-     *
-     * This will return a list of GameStateChild objects. You will generate all of the possible
-     * actions in a step and then determine the resulting game state from that action. These are your GameStateChildren.
-     * 
-     * It may be useful to be able to create a SEPIA Action. In this assignment you will
-     * deal with movement and attacking actions. There are static methods inside the Action
-     * class that allow you to create basic actions:
-     * Action.createPrimitiveAttack(int attackerID, int targetID): returns an Action where
-     * the attacker unit attacks the target unit.
-     * Action.createPrimitiveMove(int unitID, Direction dir): returns an Action where the unit
-     * moves one space in the specified direction.
-     *
-     * You may find it useful to iterate over all the different directions in SEPIA. This can
-     * be done with the following loop:
-     * for(Direction direction : Directions.values())
-     *
-     * To get the resulting position from a move in that direction you can do the following
-     * x += direction.xComponent()
-     * y += direction.yComponent()
-     * 
-     * If you wish to explicitly use a Direction you can use the Direction enum, for example
-     * Direction.NORTH or Direction.NORTHEAST.
-     * 
-     * You can check many of the properties of an Action directly:
-     * action.getType(): returns the ActionType of the action
-     * action.getUnitID(): returns the ID of the unit performing the Action
-     * 
-     * ActionType is an enum containing different types of actions. The methods given above
-     * create actions of type ActionType.PRIMITIVEATTACK and ActionType.PRIMITIVEMOVE.
-     * 
-     * For attack actions, you can check the unit that is being attacked. To do this, you
-     * must cast the Action as a TargetedAction:
-     * ((TargetedAction)action).getTargetID(): returns the ID of the unit being attacked
-     * 
-     * @return All possible actions and their associated resulting game state
-     */
-    //gameStateChild = game state with action associated with how we reached that child. has public variables that are just the variables
     public List<GameStateChild> getChildren() {
-    	//System.out.println("-----------------NEXT PLY EXECUTED-----------------"); //boy it gets stuck on 18,2 even after turn 3
-    	List<GameStateChild> children = new LinkedList<GameStateChild>();
+      	List<GameStateChild> children = new LinkedList<GameStateChild>();
     	List<Integer> movers = unitIDs; //the units moving this turn
     	if (turnNum % 2 == 1)
     		movers = enemyUnitIDs;
@@ -412,7 +350,6 @@ public class GameState {
 				nextSpots[i] = optimalPaths.get(i)[(int)Math.ceil(turnNum/ 2)]; //used to be turnNum + 1
     		}
     	}
-    	//we cant use a stack. need to use an arraylist, run through with turn number
     	while (actionMaps.size() != 0) { 
     		HashMap<Integer, Action> actions = actionMaps.pop(); //set of actions taken to reach a new state
     		HashMap<Integer, FutureUnit> nextState = new HashMap<Integer, FutureUnit>(); //new list of future units
@@ -420,24 +357,29 @@ public class GameState {
     			FutureUnit fu;
     			if (actions.get(id) != null) {
     				if(actions.get(id).getType().equals(ActionType.PRIMITIVEATTACK)) {
-    					nextState.put(id, futureUnits.get(id).duplicate()); //add attacker
+    					if (nextState.get(id) == null)
+    						nextState.put(id, futureUnits.get(id).duplicate()); //add attacker
     					TargetedAction ta = (TargetedAction)actions.get(id); 
-    					fu = futureUnits.get(ta.getTargetId()).duplicate();
+    					fu = nextState.get(ta.getTargetId());
+    					if (fu == null)
+    						fu = futureUnits.get(ta.getTargetId()).duplicate();
     					//update health of attacked unit
-    					fu.attacked(actions.get(id), state.getUnit(unitIDs.get(0)).getTemplateView().getBasicAttack());	
-    					
-    					if (fu.getHp() > 0)
+    					fu.attacked(actions.get(id), state.getUnit(id).getTemplateView().getBasicAttack());	
     						nextState.put(fu.getId(), fu); //add attacked if not dead
     				}
     				//if the action is a move, update the futureUnit's location
     				if (actions.get(id).getType().equals(ActionType.PRIMITIVEMOVE)) {
-    					fu = futureUnits.get(id).duplicate();
+    					fu = nextState.get(id);
+    					if (fu == null)
+    						fu = futureUnits.get(id).duplicate();
     					fu.moved(actions.get(id));
     					nextState.put(id, fu);
     				}
     			}
-    			else  //add units that don't have actions too!
-    				nextState.put(id, futureUnits.get(id).duplicate());
+    			else {  //add units that don't have actions too!
+    				if (nextState.get(id) == null)
+    					nextState.put(id, futureUnits.get(id).duplicate());
+    			}
     		}
     		children.add(new GameStateChild(actions, new GameState(this, nextState, optimalPaths, nextSpots)));
     	}
@@ -490,6 +432,7 @@ public class GameState {
                 		move.add(Action.createPrimitiveAttack(id, target));
                 	}
                 }
+                //if there's an enemy in our melee range
                 if (turnNum % 2 == 0 && inMeleeRange.get(id) != null) { //implies the unit is a footman and enemy is in range
                 	for (Integer target: inMeleeRange.get(id)) {
                 		move.add(Action.createPrimitiveAttack(id, target));
@@ -499,37 +442,7 @@ public class GameState {
     	}
     	return move; 
     }
-    /*
 
-    public List<Action> allActions(Integer id){
-    	List<Action> move = new ArrayList<Action>();
-    	for (Direction direction : Direction.values()) {               
-    		if (direction.equals(Direction.NORTH) || direction.equals(Direction.EAST) ||
-                direction.equals(Direction.SOUTH) || direction.equals(Direction.WEST)) {
-                UnitView unit = state.getUnit(id);
-                int nextposx = unit.getXPosition() + direction.xComponent();
-                int nextposy = unit.getYPosition() + direction.yComponent();
-                if (nextposx <= state.getXExtent() && nextposy <= state.getYExtent() && 
-                		!state.isResourceAt(nextposx, nextposy) && nextposx > -1
-                		&& nextposy > -1 &&!state.hasUnit(nextposx, nextposy)) {  
-                			move.add(Action.createPrimitiveMove(id, direction));
-                }
-                if (turnNum % 2 == 1 && inArrowRange.get(id) != null) { //implies the unit is an archer and enemy is in range
-                	for (Integer target: inArrowRange.get(id)) 
-                		move.add(Action.createPrimitiveAttack(id, target));
-                }
-                if (turnNum % 2 == 0 && inMeleeRange.get(id) != null) { //implies the unit is a footman and enemy is in range
-                	for (Integer target: inMeleeRange.get(id)) {
-                		System.out.println("melee target is " + target);
-                		move.add(Action.createPrimitiveAttack(id, target));
-                	}
-                }
-    		}
-    	}
-    	return move;
-    }
-    */
-    
     
     public MapLocation[] getOptimalPath(State.StateView state, Integer unitID, Integer enemyUnitID) {   	
     	AStarSearcher search = new AStarSearcher();
@@ -547,7 +460,6 @@ public class GameState {
     	for (int i = 0; optimalPath.size() > 0; i++) {
     		//we want it to be ahead by 1. at turn0, we want to show them the optimal path at move 1
     		optimalPath2[i] = optimalPath.pop();
-    //		System.out.println(optimalPath2[i].x + "," + optimalPath2[i].y);
     	}
     	return optimalPath2; 
     }
@@ -587,15 +499,11 @@ public class GameState {
     	        }
     	    	return path;    
     	    }
-    	    //returns whether the target destination is adjacent to our current location
-    	    private boolean isAdjacent(MapLocation current, MapLocation target) {
-    	    	return Math.abs(current.x - target.x) <= 1 && Math.abs(current.y - target.y) <= 1;
-    	    }
+    	
     	    //trace back the path from the goal node		
     	    public Stack<MapLocation> tracePath(MapLocation goal) {
     	    	Stack<MapLocation> path = new Stack<MapLocation>();
     	    	for (MapLocation parent = goal.cameFrom; parent.cameFrom != null; parent = parent.cameFrom) { 
-    	    		//System.out.println("PATH FOUND: " + parent.x + ", " + parent.y);
     	    		path.push(parent);
     	    	}
     	    	return path;
