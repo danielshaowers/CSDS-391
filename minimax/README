@@ -1,0 +1,17 @@
+I believe this submission will be in contention for one of the most efficient/effective programs. 
+It successfully defeats the 3 maps provided. It properly functions for both 1 and 2 friendly and enemy units, but not if there were 3 units.
+
+One central component is the AStar optimal path. Although it is slow to compute the optimal path, it is only run once
+per middlestep, rather than for every single gamestatechild that is created. The optimal path is computed for each footman
+and its nearest enemy during the middle step. We sacrifice some accuracy in movement for extreme runtime increase by not calculating 
+AStar every single time. 
+We changed the optimal path from a stack to an array so that each index in the array corresponds to (turn number / 2), since our
+units only move every other turn. 
+
+FutureUnit is the class we use to track gamestates. We use it to compute how the actions performed will affect the units in the game
+It stores coordinates, health, ID, turn number, and whether it is a friendly or enemy unit. 
+
+The utility function is formed from enemy distances ,friendly distances, health of friendly and enemy units, 
+how near an enemy is to a corner, and distance between our units and the optimal path. 
+
+The Trees class is not used.

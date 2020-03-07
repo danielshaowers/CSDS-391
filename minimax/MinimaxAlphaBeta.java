@@ -95,11 +95,9 @@ public class MinimaxAlphaBeta extends Agent {
 	    		return new Pair<GameStateChild, Double>(node, node.state.getUtility());
 	    	else {
 	    		Pair<GameStateChild, Double> max = new Pair<GameStateChild, Double>(null, Double.NEGATIVE_INFINITY); //tracks the max child node and its utility
-	    		Pair<GameStateChild, Double> temp = null;
-	    		//double maxEval = Double.NEGATIVE_INFINITY;   		
+	    		Pair<GameStateChild, Double> temp = null; 		
 	    		//determines node with max value by recursively calling all its children
 	    		for (GameStateChild kid:orderChildrenWithHeuristics(node.state.getChildren())) { 
-	    		//for (GameStateChild kid: node.state.getChildren()) {		
 	        		//returns the utility of one leaf and the node that led to it
 	        		temp = minimumValue(kid, depth-1, alpha, beta);
 	        		if (temp.getValue() > max.getValue()) 
@@ -119,22 +117,18 @@ public class MinimaxAlphaBeta extends Agent {
 	    
 	    public Pair<GameStateChild, Double> minimumValue(GameStateChild node, int depth, double alpha, double beta)
 	    {
-	    	if (depth == 0) {
+	    	if (depth == 0) 
 	    		return new Pair<GameStateChild, Double>(node, node.state.getUtility());   	
-	    	}
-	    	else
-	    	{
+	    	else {
 	    		Pair<GameStateChild, Double> min = new Pair<GameStateChild, Double>(null, Double.POSITIVE_INFINITY);
 	    		Pair<GameStateChild, Double> temp;
 	    		//determines node with min value by recursively calling all its children
 	    		for (GameStateChild kid : orderChildrenWithHeuristics(node.state.getChildren())) { 
-	        	//for (GameStateChild kid: node.state.getChildren()) {	
 	    		//stores node that team awesome is most likely to choose 
 	        		temp = maximumValue(kid,depth-1,alpha,beta);       		
 	        		//decides which node has lower utility i.e. which node opponent will choose
 	    			if (temp.getValue() < min.getValue())
-	    				min = new Pair<GameStateChild, Double>(kid, temp.getValue());
-	    			
+	    				min = new Pair<GameStateChild, Double>(kid, temp.getValue());	    			
 	    			//prunes
 	    			if (min.getValue() <= alpha) 
 	    				return min;    			
@@ -145,23 +139,13 @@ public class MinimaxAlphaBeta extends Agent {
 	    }
 
 
-	    /**
-	     * You will implement this.
-	     *
-	     * Given a list of children you will order them according to heuristics you make up.
-	     * See the assignment description for suggestions on heuristics to use when sorting.
-	     *
-	     * Use this function inside of your alphaBetaSearch method.
-	     *
-	     * Include a good comment about what your heuristics are and why you chose them.
-	     *
-	     * @param children
-	     * @return The list of children sorted by your heuristic.
-	     */ //if action moves me closer, makes an attack, distance comparison.
-	    //note that we use higher heuristic values to represent better outcomes rather than to estimate utility directly
+
+
+	   //higher heuristic if the movement brings us closer to enemy, if we perform an attack, and if utility at the state is high
+	    //multiplies heuristic by a negative if it's the enemy's turn bc they're more likely to select low heuristic value moves
 	    public List<GameStateChild> orderChildrenWithHeuristics(List<GameStateChild> children)
 	    { //the point is to order by highest utility without examining the utilities (since that takes further plies)
-	        //assign each action+location a heuristic, then quicksort based on the values
+	        //assign each action+location a heuristic, then insertion based on the values
 	    	ArrayList<HeuristicChildPair> heuristic = new ArrayList<HeuristicChildPair>(); 	    	
 	    	int i = -1;
 	    	int multiplier = 1; //multiply all heuristics w/ this value
@@ -184,7 +168,6 @@ public class MinimaxAlphaBeta extends Agent {
 	    				if (ActionType.PRIMITIVEATTACK.equals(action.getType())) //beneficial if we attack
 	    					currentHeuristic.incrVal(10 * multiplier);  
 	    				if (ActionType.PRIMITIVEMOVE.equals(action.getType())) { //not sure how to check direction
-	    				//	FutureUnit enemy = child.state.getState().getUnit(child.state.getEnemyUnitIDs().get(i));
 	    					edu.cwru.sepia.util.Direction direction = ((DirectedAction) action).getDirection();
 	    					FutureUnit nearestEnemy = futureUnits.get(enemyDists[1]);
 	    					int yDistToEnemy = fu.getY() - nearestEnemy.getY();
@@ -233,12 +216,15 @@ public class MinimaxAlphaBeta extends Agent {
 	    	public void setVal(int val) {
 	    		heuristic = val;
 	    	}
-	    	public int compareTo(HeuristicChildPair h) {
-	    		if (h.heuristic < this.heuristic)
-	    			return -1;
-	    		if (h.heuristic > this.heuristic)
-	    			return 1;
-	    		return 0;
+	    	public int compareTo(Object h) {
+	    		if (h instanceof HeuristicChildPair) {
+	    			HeuristicChildPair j = (HeuristicChildPair)h;
+	    			if (j.heuristic < this.heuristic)
+	    					return -1;
+	    			if (j.heuristic > this.heuristic)
+	    				return 1;
+	    		}
+	    	return 0;
 	    	}
 	    }
 	    

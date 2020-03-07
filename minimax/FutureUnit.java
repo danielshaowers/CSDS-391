@@ -112,7 +112,6 @@ import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 	private int hp;
 	private boolean good = true;
 	private int turnNum;
-	ArrayList<MapLocation[]> optimalPath;
 	
 	public FutureUnit (int xLoc, int yLoc, int id, int hp, int turnNum, boolean good) {
 		x = xLoc;
