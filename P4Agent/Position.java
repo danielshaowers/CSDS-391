@@ -1,4 +1,4 @@
-package EECS391_sepia;
+package P4Agent;
 
 import edu.cwru.sepia.util.Direction;
 

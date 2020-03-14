@@ -1,4 +1,4 @@
-package EECS391_sepia;
+package P4Agent;
 
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.environment.model.state.State;
@@ -68,6 +68,7 @@ class moveTo implements StripsAction{
 			return true;
 		return false;
 	}
+	//do we need to check if the move is a valid location?
 	@Override
 	public GameState apply(GameState state) {
 		Position agentposnew = agentpos.move(agentpos.getDirection(locationpos));
@@ -83,6 +84,10 @@ class moveTo implements StripsAction{
 	//returns StripsAction took to get to this state
 	public StripsAction getCameFrom() {
 		return camefrom;
+	}
+	
+	public String toString() {
+		return "Agent " + agentId + ": MOVE(" + locationpos.x + ", " + locationpos.y + ")";
 	}
 }
 
@@ -137,6 +142,10 @@ class harvest implements StripsAction{
 	public StripsAction getCameFrom() {
 		return camefrom;
 	}
+	@Override 
+	public String toString() {
+		return "Agent " + agentId + " HARVESTING( " + locationpos.x + ", " + locationpos.y + ")";
+	}
 	
 }
 
@@ -175,6 +184,11 @@ class deposit implements StripsAction{
 	//returns StripsAction took to get to this state
 	public StripsAction getCameFrom() {
 		return camefrom;
+	}
+	
+	@Override
+	public String toString() {
+		return "Agent " + agentId + " DEPOSIT(" + locationpos.x + ", " + locationpos.y + ")";
 	}
 	
 }
