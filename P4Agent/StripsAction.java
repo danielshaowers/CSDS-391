@@ -1,5 +1,8 @@
 package P4Agent;
 
+import java.util.HashMap;
+
+import HW2.src.edu.cwru.sepia.agent.AStarAgent;
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.environment.model.state.State;
 
@@ -41,91 +44,166 @@ public interface StripsAction {
     
     //returns the StripsAction the lead to the new gamestate
     public StripsAction getCameFrom();
+    
+    public Action toSepiaAction();
 }
 
 //Strips action classes that implement interface
 class moveTo implements StripsAction{
-	Position agentpos;
+	Daniel peasant;
 	Position locationpos;
-	int agentId;
 	int locationId;
 	StripsAction camefrom;
 	
 	
 	//Initializes agents position and location the agent wants go to 
-	public moveTo(Position agent, Position location, int agId, int locId, GameState state)
+	public moveTo(Daniel agent, Position location, int locId, GameState state)
 	{
-		agentpos = agent;
+		peasant = agent;
 		locationpos = location;
-		this.agentId = agId;
 		locationId = locId;
 		camefrom = state.camefrom;
 	}
 	@Override
 	//determines if agent position is equal to location position
 	public boolean preconditionsMet(GameState state) {
-		if(!agentpos.equals(locationpos))
-			return true;
-		return false;
+		return peasant.getPosition().equals(locationpos);
 	}
-	//do we need to check if the move is a valid location?
 	@Override
 	public GameState apply(GameState state) {
-		Position agentposnew = agentpos.move(agentpos.getDirection(locationpos));
-		return new GameState(agentposnew, state.currentGold, state.currentWood, state.goldheld,state.woodheld, 
-				new moveTo(agentpos,locationpos,agentId,locationId, state), state);
+		HashMap<Integer, Daniel> next = state.duplicatePeasants();
+		peasant = next.get(peasant.getId());
+		int cost = (int)(state.getCost() + peasant.getPosition().euclideanDistance(locationpos));
+		peasant.setPosition(locationpos);
+		state.peasants.put(peasant.getId(), peasant);  //I think this line is unnecessary
+		return new GameState(next, state.currentGold, state.currentWood, cost, this, state);
 	}
-	//returns cost to get from agent position to desired location
-	public double getCost(){
-		return agentpos.euclideanDistance(locationpos);
+
+	@Override
+	//returns StripsAction took to get to this state
+	public StripsAction getCameFrom() {
+		return camefrom;
+	}	
+	public String toString() {
+		return "Agent " + peasant.getId() + ": MOVE(" + locationpos.x + ", " + locationpos.y + ")";
 	}
-	
+	//converts STRIPS action to sepia action
+	public Action toSepiaAction() {
+		return Action.createCompoundMove(peasant.getId(), locationpos.x, locationpos.y);
+	}
+}
+class buildPeasants implements StripsAction{
+	Daniel peasant;
+	Position locationpos;
+	int locationId;
+	StripsAction camefrom;
+	//Initializes agents position and location the agent wants go to 
+	public buildPeasants(Daniel agent, Position location, int locId, GameState state)
+	{
+		peasant = agent;
+		locationpos = location;
+		locationId = locId;
+		camefrom = state.camefrom;
+	}
+	@Override
+	public boolean preconditionsMet(GameState state) {
+		return (!state.isGoal() && peasant.getPosition().isAdjacent(locationpos)&&(state.currentGold==400));
+	}
+
+	@Override
+	public GameState apply(GameState state) {
+		HashMap<Integer, Daniel> next = state.duplicatePeasants();
+		peasant = next.get(peasant.getId());
+		return new GameState(next, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
+	}
 	@Override
 	//returns StripsAction took to get to this state
 	public StripsAction getCameFrom() {
 		return camefrom;
 	}
 	
+	@Override
 	public String toString() {
-		return "Agent " + agentId + ": MOVE(" + locationpos.x + ", " + locationpos.y + ")";
+		return "Agent " + peasant.getId() + " BUILDPEASANT(" + locationpos.x+1 + ", " + locationpos.y+1 + ")";
 	}
+	
+	@Override
+	public Action toSepiaAction() {
+		return Action.createCompoundBuild(peasant.getId(), 26, locationpos.x+1, locationpos.y+1);
+	}
+	
 }
-
-class harvest implements StripsAction{
-	Position agentpos;
+class deposit implements StripsAction{
+	Daniel peasant;
 	Position locationpos;
-	int agentId;
 	int locationId;
 	StripsAction camefrom;
-
 	//Initializes agents position and location the agent wants go to 
-	public harvest(Position agent, Position location, int agId, int locId, GameState state)
+	public deposit(Daniel agent, Position location, int locId, GameState state)
 	{
-		this.agentpos = agent;
-		this.locationpos = location;
-		this.agentId = agId;
+		peasant = agent;
+		locationpos = location;
 		locationId = locId;
 		camefrom = state.camefrom;
 	}
 	@Override
 	public boolean preconditionsMet(GameState state) {
-		return (!state.isGoal() && agentpos.isAdjacent(locationpos)); //makes sure state isn't goal state and that the agent is next to harvest location
+		return (state.isGoal() && peasant.getPosition().isAdjacent(locationpos));
+	}
+
+	@Override
+	public GameState apply(GameState state) {
+		HashMap<Integer, Daniel> next = state.duplicatePeasants();
+		peasant = next.get(peasant.getId());
+		return new GameState(next, peasant.getWood(), peasant.getWood(), (int)state.cost+1, this,state);
+	}
+	@Override
+	//returns StripsAction took to get to this state
+	public StripsAction getCameFrom() {
+		return camefrom;
+	}
+	
+	@Override
+	public String toString() {
+		return "Agent " + peasant.getId() + " DEPOSIT(" + locationpos.x + ", " + locationpos.y + ")";
+	}
+	
+	@Override
+	public Action toSepiaAction() {
+		return Action.createPrimitiveDeposit(peasant.getId(), peasant.getPosition().getDirection(locationpos));
+	}
+	
+}
+class harvest implements StripsAction{
+	Daniel peasant;
+	Position locationpos;
+	int locationId;
+	StripsAction camefrom;
+
+	//Initializes agents position and location the agent wants go to 
+	public harvest(Daniel agent, Position location, int locId, GameState state)
+	{
+		peasant = agent;
+		locationpos = location;
+		locationId = locId;
+		camefrom = state.camefrom;
+	}
+	@Override
+	public boolean preconditionsMet(GameState state) {
+		return (!state.isGoal() && peasant.getPosition().isAdjacent(locationpos)); //makes sure state isn't goal state and that the agent is next to harvest location
 	}
 	@Override
 	public GameState apply(GameState state) {
-		Action gather = Action.createPrimitiveGather(agentId, agentpos.getDirection(locationpos)); //
-		if(location(state)) { //determine where it collected the resource from
+		HashMap<Integer, Daniel> next = state.duplicatePeasants();
+		peasant = next.get(peasant.getId());
+		if(location(state)) { //determine where it collected the resource from	
 			
-			int gathered = state.state.getUnit(gather.getUnitId()).getTemplateView().getGoldCost(); //how much gold collected after action is executed 
-			//returns new GameState with updated class variables and stripsAction that led to this GameState
-			return new GameState(agentpos, state.currentGold, state.currentWood, gathered,state.woodheld, 
-					new harvest(agentpos,locationpos,agentId,locationId,state), state);
+			return new GameState(next, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
 		}
 		else {
-			int gathered = state.state.getUnit(gather.getUnitId()).getTemplateView().getWoodCost(); //how much wood collected after action is executed 
+			peasant.setGold(peasant.getWood()+100);
 			//returns new GameState with updated class variables and stripsAction that led to this GameState
-			return new GameState(agentpos, state.currentGold, state.currentWood,state.goldheld, gathered, 
-					new harvest(agentpos,locationpos,agentId,locationId,state), state);
+			return new GameState(next, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
 		}	
 	}
 	//determines if its a goldmine or a tree   might try and condense this with above
@@ -144,51 +222,10 @@ class harvest implements StripsAction{
 	}
 	@Override 
 	public String toString() {
-		return "Agent " + agentId + " HARVESTING( " + locationpos.x + ", " + locationpos.y + ")";
+		return "Agent " + peasant.getId() + " HARVESTING( " + locationpos.x + ", " + locationpos.y + ")";
 	}
-	
-}
-
-
-class deposit implements StripsAction{
-	Position agentpos;
-	Position locationpos;
-	int agentId;
-	int locationId;
-	StripsAction camefrom;
-	//Initializes agents position and location the agent wants go to 
-	public deposit(Position agent, Position location, int agId, int locId, GameState state)
-	{
-		this.agentpos = agent;
-		this.locationpos = location;
-		this.agentId = agId;
-		this.locationId = locId;
-		camefrom = state.camefrom;
-	}
-	@Override
-	public boolean preconditionsMet(GameState state) {
-		return (state.isGoal() && agentpos.isAdjacent(locationpos));
-	}
-
-	@Override
-	public GameState apply(GameState state) {
-		Action deposit = Action.createPrimitiveGather(agentId, agentpos.getDirection(locationpos));
-		int deposited = state.state.getUnit(deposit.getUnitId()).getTemplateView().getGoldCost(); //how much resource was deposited 
-		if(deposited ==0)  //if its zero then no gold was deposited
-			return new GameState(agentpos, state.currentGold, deposited,state.goldheld, state.woodheld, 
-					new harvest(agentpos,locationpos,agentId,locationId,state), state);				// returns state that has deposited wood
-		return new GameState(agentpos, deposited, state.currentWood,state.goldheld, state.woodheld, 
-				new harvest(agentpos,locationpos,agentId,locationId,state), state);					// returns state that has deposited gold
-	}
-	@Override
-	//returns StripsAction took to get to this state
-	public StripsAction getCameFrom() {
-		return camefrom;
-	}
-	
-	@Override
-	public String toString() {
-		return "Agent " + agentId + " DEPOSIT(" + locationpos.x + ", " + locationpos.y + ")";
+	public Action toSepiaAction() {
+		return Action.createPrimitiveGather(peasant.getId(), peasant.getPosition().getDirection(locationpos));
 	}
 	
 }
