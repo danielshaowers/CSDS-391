@@ -7,6 +7,7 @@ import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.State.StateView;
 import edu.cwru.sepia.environment.model.state.Unit.UnitView;
 
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -43,16 +44,16 @@ import java.util.List;
 public class GameState implements Comparable<GameState> {
 
 	StateView state;
-	GameState state2;
+	GameState state2; //what is this
 	int requiredGold;
 	int requiredWood;
-	int currentGold;
-	int currentWood;
+	int currentGold = 0;
+	int currentWood = 0;
 	int goldheld; //how much gold peasants are holding currently
 	int woodheld; //how much wood peasants are holding currently
 	double cost;
 	boolean buildPeasants;
-	Position agent;
+	Position agent; //what is this? why only one
 	List<Integer> goldmines = null;
 	List<Integer> tree = null;
 	List<Integer> townHallIds = null;
@@ -163,7 +164,7 @@ public class GameState implements Comparable<GameState> {
     //for every peasant, checks each resource and action for possible children
     // can def be more efficient/cleaner gonna play around with it more
     public List<GameState> generateChildren() {
-    	List<GameState> children = null;
+    	List<GameState> children = new LinkedList<GameState>();
     	for(int peasant : peasantIds) {
     		for(int i : goldmines) {
         		Position location = new Position(state.getUnit(goldmines.get(i)).getXPosition(),state.getUnit(goldmines.get(i)).getYPosition());
@@ -201,7 +202,7 @@ public class GameState implements Comparable<GameState> {
      *
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
-    public double heuristic() {
+    public double heuristic() { //time it takes to gather all of our supplies if we could teleport? + euclidean distance
         // TODO: Implement me!
         return 0.0;
     }
@@ -227,7 +228,10 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int compareTo(GameState o) {
-        // TODO: Implement me!
+        if (o.getCost() > getCost())
+        	return -1;
+        if (o.getCost() < getCost())
+        	return 1;
         return 0;
     }
 
@@ -251,7 +255,6 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int hashCode() {
-        // TODO: Implement me!
-        return 0;
+        return (int)(31*(currentGold + currentWood + goldheld + woodheld + cost));
     }
 }

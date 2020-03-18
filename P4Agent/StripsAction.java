@@ -1,5 +1,6 @@
 package P4Agent;
 
+import HW2.src.edu.cwru.sepia.agent.AStarAgent;
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.environment.model.state.State;
 
@@ -41,6 +42,8 @@ public interface StripsAction {
     
     //returns the StripsAction the lead to the new gamestate
     public StripsAction getCameFrom();
+    
+    public Action toSepiaAction();
 }
 
 //Strips action classes that implement interface
@@ -50,6 +53,7 @@ class moveTo implements StripsAction{
 	int agentId;
 	int locationId;
 	StripsAction camefrom;
+	//PathPlanner planner = new PathPlanner(); oops not necessary. just use compoundmove
 	
 	
 	//Initializes agents position and location the agent wants go to 
@@ -71,6 +75,7 @@ class moveTo implements StripsAction{
 	//do we need to check if the move is a valid location?
 	@Override
 	public GameState apply(GameState state) {
+		//make this recursive w/ an if statement?
 		Position agentposnew = agentpos.move(agentpos.getDirection(locationpos));
 		return new GameState(agentposnew, state.currentGold, state.currentWood, state.goldheld,state.woodheld, 
 				new moveTo(agentpos,locationpos,agentId,locationId, state), state);
@@ -88,6 +93,10 @@ class moveTo implements StripsAction{
 	
 	public String toString() {
 		return "Agent " + agentId + ": MOVE(" + locationpos.x + ", " + locationpos.y + ")";
+	}
+	//converts STRIPS action to sepia action
+	public Action toSepiaAction() {
+		return Action.createCompoundMove(agentId, locationpos.x, locationpos.y);
 	}
 }
 
@@ -146,6 +155,9 @@ class harvest implements StripsAction{
 	public String toString() {
 		return "Agent " + agentId + " HARVESTING( " + locationpos.x + ", " + locationpos.y + ")";
 	}
+	public Action toSepiaAction() {
+		return Action.createPrimitiveGather(agentId, agentpos.getDirection(locationpos));
+	}
 	
 }
 
@@ -173,7 +185,7 @@ class deposit implements StripsAction{
 	@Override
 	public GameState apply(GameState state) {
 		Action deposit = Action.createPrimitiveGather(agentId, agentpos.getDirection(locationpos));
-		int deposited = state.state.getUnit(deposit.getUnitId()).getTemplateView().getGoldCost(); //how much resource was deposited 
+		int deposited = state.state.getUnit(deposit.getUnitId()).getTemplateView().getGoldCost(); //how much resource was deposited. this gets the cost of creating that unit I believe 
 		if(deposited ==0)  //if its zero then no gold was deposited
 			return new GameState(agentpos, state.currentGold, deposited,state.goldheld, state.woodheld, 
 					new harvest(agentpos,locationpos,agentId,locationId,state), state);				// returns state that has deposited wood
@@ -189,6 +201,11 @@ class deposit implements StripsAction{
 	@Override
 	public String toString() {
 		return "Agent " + agentId + " DEPOSIT(" + locationpos.x + ", " + locationpos.y + ")";
+	}
+	
+	@Override
+	public Action toSepiaAction() {
+		return Action.createPrimitiveDeposit(agentId, agentpos.getDirection(locationpos));
 	}
 	
 }

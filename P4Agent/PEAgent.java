@@ -18,6 +18,7 @@ import java.util.Stack;
 /**
  * This is an outline of the PEAgent. Implement the provided methods. You may add your own methods and members.
  */
+//converts the planned actions in PlannerAgent into actual actions
 public class PEAgent extends Agent {
 
     // The plan being executed
@@ -113,7 +114,7 @@ public class PEAgent extends Agent {
      * @return SEPIA representation of same action
      */
     private Action createSepiaAction(StripsAction action) {
-        return null;
+        return action.toSepiaAction();
     }
 
     @Override
