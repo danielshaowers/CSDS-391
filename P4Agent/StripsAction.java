@@ -71,12 +71,10 @@ class moveTo implements StripsAction{
 	}
 	@Override
 	public GameState apply(GameState state) {
-		HashMap<Integer, Daniel> next = state.duplicatePeasants();
-		peasant = next.get(peasant.getId());
+		peasant = peasant.makeCopy();
 		int cost = (int)(state.getCost() + peasant.getPosition().euclideanDistance(locationpos));
 		peasant.setPosition(locationpos);
-		state.peasants.put(peasant.getId(), peasant);  //I think this line is unnecessary
-		return new GameState(next, state.currentGold, state.currentWood, cost, this, state);
+		return new GameState(peasant, state.currentGold, state.currentWood, cost, this,state);
 	}
 
 	@Override
@@ -112,9 +110,8 @@ class buildPeasants implements StripsAction{
 
 	@Override
 	public GameState apply(GameState state) {
-		HashMap<Integer, Daniel> next = state.duplicatePeasants();
-		peasant = next.get(peasant.getId());
-		return new GameState(next, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
+		peasant = peasant.makeCopy();
+		return new GameState(peasant, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
 	}
 	@Override
 	//returns StripsAction took to get to this state
@@ -153,9 +150,8 @@ class deposit implements StripsAction{
 
 	@Override
 	public GameState apply(GameState state) {
-		HashMap<Integer, Daniel> next = state.duplicatePeasants();
-		peasant = next.get(peasant.getId());
-		return new GameState(next, peasant.getWood(), peasant.getWood(), (int)state.cost+1, this,state);
+		peasant = peasant.makeCopy();
+		return new GameState(peasant, peasant.getWood(), peasant.getWood(), (int)state.cost+1, this,state);
 	}
 	@Override
 	//returns StripsAction took to get to this state
@@ -194,16 +190,15 @@ class harvest implements StripsAction{
 	}
 	@Override
 	public GameState apply(GameState state) {
-		HashMap<Integer, Daniel> next = state.duplicatePeasants();
-		peasant = next.get(peasant.getId());
+		peasant = peasant.makeCopy();
 		if(location(state)) { //determine where it collected the resource from	
 			
-			return new GameState(next, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
+			return new GameState(peasant, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
 		}
 		else {
 			peasant.setGold(peasant.getWood()+100);
 			//returns new GameState with updated class variables and stripsAction that led to this GameState
-			return new GameState(next, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
+			return new GameState(peasant, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
 		}	
 	}
 	//determines if its a goldmine or a tree   might try and condense this with above
