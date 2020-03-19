@@ -58,7 +58,6 @@ public class PEAgent extends Agent {
                 break;
             }
         }
-
         return middleStep(stateView, historyView);
     }
 

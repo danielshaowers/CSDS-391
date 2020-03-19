@@ -2,6 +2,7 @@ package P4Agent;
 
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.environment.model.state.ResourceNode;
+import edu.cwru.sepia.environment.model.state.ResourceNode.ResourceView;
 import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.State.StateView;
@@ -47,6 +48,7 @@ import java.util.Map;
  */
 public class GameState implements Comparable<GameState> {
 	Daniel peasant; 
+	HashMap<Integer, Nacho> resources = new HashMap<Integer, Nacho>();
 	StateView state;
 	GameState state2; //what is this
 	int requiredGold;
@@ -105,29 +107,40 @@ public class GameState implements Comparable<GameState> {
     	//gets ids of all goldmines and trees in respective list
     	for(int id : resourceIds)
     	{
-			if(state.getResourceNode(id).getType().equals(ResourceNode.Type.GOLD_MINE))
-    			goldmines.add(id);
-			else if(state.getResourceNode(id).getType().equals(ResourceNode.Type.TREE))
-				tree.add(id);   			
+    		ResourceView resource = state.getResourceNode(id);
+			if(resource.getType().equals(ResourceNode.Type.GOLD_MINE)) {
+    			goldmines.add(id);    			
+    			resources.put(id, new Nacho(resource.getXPosition(), resource.getYPosition(), resource.getAmountRemaining(), id, true));
+    		}
+			else if(resource.getType().equals(ResourceNode.Type.TREE)) {
+				tree.add(id);
+				resources.put(id, new Nacho(resource.getXPosition(), resource.getYPosition(), resource.getAmountRemaining(), id, false));
+			}
     	}	
     }
-    public GameState(Daniel peasant, int golddepoist, int wooddeposit, int cost, StripsAction action, GameState state)
-    {
+    public GameState(Daniel peasant, HashMap<Integer, Nacho> resource, int golddepoist, int wooddeposit, int cost, StripsAction action, GameState state){
     	//initialzes everything
     	this.goldmines = state.goldmines;
+    	this.resources = resource;
     	this.tree = state.tree;
     	this.peasant = peasant; //may change from previous gamestate
     	this.requiredGold = state.requiredGold;
     	this.requiredWood = state.requiredWood;
-    	this.currentGold = golddepoist; //may change from previous state
-    	this.currentWood = wooddeposit; //may change from previous state
-    	camefrom = action; //definitely changes from previous state
+    	this.currentGold = state.currentGold + golddepoist; //may change from previous state
+    	this.currentWood = state.currentWood + wooddeposit; //may change from previous state
+    	this.camefrom = action; //definitely changes from previous state
 		this.state2 = state; //the gamestate i don't know why it was named so ambiguously
 		this.peasantId = peasant.getId();
 		this.townHallId = state.townHallId;
     }
     
-    
+    public HashMap<Integer, Nacho> duplicateResourceMap(){
+    	HashMap<Integer, Nacho> next = new HashMap<Integer, Nacho>();
+    	for (Integer i : state.getAllResourceIds()) {
+    		next.put(i, resources.get(i).makeCopy());
+    	}
+    	return next;
+    }
 
     /**
      * Unlike in the first A* assignment there are many possible goal states. As long as the wood and gold requirements
@@ -164,28 +177,31 @@ public class GameState implements Comparable<GameState> {
     public List<GameState> generateChildren() {
     	List<GameState> children = new LinkedList<GameState>();
     	List<StripsAction> allActions = new ArrayList<StripsAction>();
-    		for(int i : goldmines) {
-        		Position location = new Position(state.getUnit(goldmines.get(i)).getXPosition(),state.getUnit(goldmines.get(i)).getYPosition());
-        		moveTo movingAgent = new moveTo(peasant, location, i, state2);  
-            	if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
-            		allActions.add(movingAgent);           		
-            	}// if passes precondition, gets new gamestate with agent at that location
-            	harvest harvestgold = new harvest(peasant,location, i, state2);
-            	if(harvestgold.preconditionsMet(state2))
-            		allActions.add(harvestgold);
+    	for(int i : goldmines) {
+    		if (resources.get(i) != null) {
+    			Position location = new Position(state.getUnit(goldmines.get(i)).getXPosition(),state.getUnit(goldmines.get(i)).getYPosition());
+    			moveTo movingAgent = new moveTo(peasant, location, i, state2);  
+    			if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
+    				allActions.add(movingAgent);           		
+    			}// if passes precondition, gets new gamestate with agent at that location
+    			harvest harvestgold = new harvest(peasant,location, i, state2);
+    			if(harvestgold.preconditionsMet(state2))
+    				allActions.add(harvestgold);
+    			}
         	}
     		for(int i : tree) {
-        		Position location = new Position(state.getUnit(tree.get(i)).getXPosition(),state.getUnit(tree.get(i)).getYPosition());
-        		moveTo movingAgent = new moveTo(peasant, location, i, state2);  
-            	if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
-            		allActions.add(movingAgent);           		
-            	}// if passes precondition, gets new gamestate with agent at that location
-            	harvest harvestwood = new harvest(peasant,location, i, state2);
-            	if(harvestwood.preconditionsMet(state2))
-            		allActions.add(harvestwood);
-//I can make all these precondition checks and additions into a single method.
-        	}
-    		
+    			if (resources.get(i) != null) {
+    				Position location = new Position(state.getUnit(tree.get(i)).getXPosition(),state.getUnit(tree.get(i)).getYPosition());
+    				moveTo movingAgent = new moveTo(peasant, location, i, state2);  
+    				if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
+    					allActions.add(movingAgent);           		
+    				}// if passes precondition, gets new gamestate with agent at that location
+    				harvest harvestwood = new harvest(peasant,location, i, state2);
+    				if(harvestwood.preconditionsMet(state2))
+    					allActions.add(harvestwood);
+            	//I can make all these precondition checks and additions into a single method.
+    			}
+        	}    		
     			Position location = new Position(state.getUnit(townHallId).getXPosition(),state.getUnit(townHallId).getYPosition());
         		moveTo movingAgent = new moveTo(peasant, location, townHallId, state2);  
             	if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
@@ -221,9 +237,11 @@ public class GameState implements Comparable<GameState> {
      *
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
-    public double heuristic() { //time it takes to gather all of our supplies if we could teleport? + euclidean distance
-        // TODO: Implement me!
-        return 0.0;
+    public double heuristic() { //time it takes to walk to resource and back if gathering took no time
+        int remainingGoldCost = requiredGold - currentGold; //time it takes to harvest 
+        int remainingWoodCost = requiredWood - currentWood; //time it takes to harvest that much wood
+        return remainingGoldCost + remainingWoodCost +
+        		peasant.getPosition().euclideanDistance(new Position(state.getUnit(townHallId).getXPosition(), state.getUnit(townHallId).getYPosition()));
     }
 
     /**
@@ -234,7 +252,6 @@ public class GameState implements Comparable<GameState> {
      * @return The current cost to reach this goal
      */
     public double getCost() {
-        // TODO: Implement me!
         return cost;
     }
 
@@ -246,10 +263,10 @@ public class GameState implements Comparable<GameState> {
      * @return 1 if this state costs more than the other, 0 if equal, -1 otherwise
      */
     @Override
-    public int compareTo(GameState o) {
-        if (o.getCost() > getCost())
+    public int compareTo(GameState o) { //doesn't that mean priorityqueue is a minheap
+        if (o.getCost() + o.heuristic() > getCost() + heuristic())
         	return -1;
-        if (o.getCost() < getCost())
+        if (o.getCost() + o.heuristic() < getCost() + heuristic())
         	return 1;
         return 0;
     }
