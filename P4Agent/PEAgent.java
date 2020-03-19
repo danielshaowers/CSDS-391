@@ -1,9 +1,11 @@
-package P4Agent;
+package EECS391_sepia;
 
 
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionFeedback;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
+import edu.cwru.sepia.environment.model.state.ResourceNode.Type;
 import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.Template;
@@ -18,7 +20,6 @@ import java.util.Stack;
 /**
  * This is an outline of the PEAgent. Implement the provided methods. You may add your own methods and members.
  */
-//converts the planned actions in PlannerAgent into actual actions
 public class PEAgent extends Agent {
 
     // The plan being executed
@@ -30,8 +31,9 @@ public class PEAgent extends Agent {
     private Map<Integer, Integer> peasantIdMap;
     private int townhallId;
     private int peasantTemplateId;
+    
 
-    public PEAgent(int playernum, Stack<StripsAction> plan) {
+    public PEAgent(int playernum, Stack<StripsAction> plan, int requiredGold, int requiredWood) {
         super(playernum);
         peasantIdMap = new HashMap<Integer, Integer>();
         this.plan = plan;
@@ -58,6 +60,9 @@ public class PEAgent extends Agent {
                 break;
             }
         }
+		int unitId = peasantIdMap.get(1); //gets sepia assigned id of peasant
+    	Map<Integer, Action> actions = null; //holds all actions poped from planed path
+        actions.put(unitId, plan.pop().toSepiaAction()); // puts Map of unitId and Action in actions
         return middleStep(stateView, historyView);
     }
 
@@ -85,10 +90,14 @@ public class PEAgent extends Agent {
      */
     @Override
     public Map<Integer, Action> middleStep(State.StateView stateView, History.HistoryView historyView) {
-        // TODO: Implement me!
-    	//if (gamestate.isGoal())
-    	//	return null;
-        return null;
+    	
+    	if(plan.isEmpty()) 
+    		return null;
+    	int unitId = peasantIdMap.get(1); //gets sepia assigned id of peasant
+        Map<Integer, Action> actions = null; //holds all actions poped from planed path
+        if(historyView.getCommandFeedback(playernum, stateView.getTurnNumber() - 1).get(unitId).getFeedback() == ActionFeedback.COMPLETED) //checks to see if action is still going
+        	actions.put(unitId, plan.pop().toSepiaAction()); // puts Map of unitId and Action in actions
+        return actions;
     }
 
     /**
@@ -115,7 +124,7 @@ public class PEAgent extends Agent {
      * @return SEPIA representation of same action
      */
     private Action createSepiaAction(StripsAction action) {
-        return action.toSepiaAction();
+        return action.toSepiaAction(); //decided to do actual conversion within strips actions
     }
 
     @Override
