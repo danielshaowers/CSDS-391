@@ -50,7 +50,6 @@ public class GameState implements Comparable<GameState> {
 	Daniel peasant; 
 	HashMap<Integer, Nacho> resources = new HashMap<Integer, Nacho>();
 	StateView state;
-	GameState state2; //what is this
 	int requiredGold;
 	int requiredWood;
 	int currentGold = 0;
@@ -58,8 +57,8 @@ public class GameState implements Comparable<GameState> {
 	double cost;
 	boolean buildPeasants;
 	Position agent; //what is this? why only one
-	List<Integer> goldmines = null;
-	List<Integer> tree = null;
+	List<Integer> goldmines = new ArrayList<Integer>();
+	List<Integer> tree = new ArrayList<Integer>();
 	int townHallId;
 	int peasantId;
 	StripsAction camefrom = null;
@@ -85,8 +84,8 @@ public class GameState implements Comparable<GameState> {
     	for(int id : unitIDs){
     		UnitView unit = state.getUnit(id);
 			String type = unit.getTemplateView().getName(); //obtains the name of each unit, then categorizes them in respective list
-			if (type.equals("TownHall"))
-				townHallId = id;
+			if (type.equals("TownHall")) 
+				townHallId = id;		
 			else if (type.equals("Peasant")) {
 				int woodheld = 0; 
 				int goldheld = 0;
@@ -129,15 +128,16 @@ public class GameState implements Comparable<GameState> {
     	this.currentGold = state.currentGold + golddepoist; //may change from previous state
     	this.currentWood = state.currentWood + wooddeposit; //may change from previous state
     	this.camefrom = action; //definitely changes from previous state
-		this.state2 = state; //the gamestate i don't know why it was named so ambiguously
-		this.peasantId = peasant.getId();
+    	this.peasantId = peasant.getId();
 		this.townHallId = state.townHallId;
+		this.state = state.state;
     }
     
     public HashMap<Integer, Nacho> duplicateResourceMap(){
     	HashMap<Integer, Nacho> next = new HashMap<Integer, Nacho>();
     	for (Integer i : state.getAllResourceIds()) {
-    		next.put(i, resources.get(i).makeCopy());
+    		if (resources.get(i) != null)
+    			next.put(i, resources.get(i).makeCopy());
     	}
     	return next;
     }
@@ -178,44 +178,41 @@ public class GameState implements Comparable<GameState> {
     	List<GameState> children = new LinkedList<GameState>();
     	List<StripsAction> allActions = new ArrayList<StripsAction>();
     	for(int i : goldmines) {
-    		if (resources.get(i) != null) {
-    			Position location = new Position(state.getUnit(goldmines.get(i)).getXPosition(),state.getUnit(goldmines.get(i)).getYPosition());
-    			moveTo movingAgent = new moveTo(peasant, location, i, state2);  
-    			if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
-    				allActions.add(movingAgent);           		
+    		if (resources.get(i) != null) {    		
+    			Position location = new Position(resources.get(i).x, resources.get(i).y);
+    			moveTo movingAgent = new moveTo(peasant, location, i, this);  
+    			if(movingAgent.preconditionsMet(this)) {	//checks to see if agent can move to desired location
+    				allActions.add(movingAgent);      		
     			}// if passes precondition, gets new gamestate with agent at that location
-    			harvest harvestgold = new harvest(peasant,location, i, state2);
-    			if(harvestgold.preconditionsMet(state2))
+    			harvest harvestgold = new harvest(peasant,location, i, this);
+    			if(harvestgold.preconditionsMet(this))
     				allActions.add(harvestgold);
     			}
         	}
     		for(int i : tree) {
     			if (resources.get(i) != null) {
-    				Position location = new Position(state.getUnit(tree.get(i)).getXPosition(),state.getUnit(tree.get(i)).getYPosition());
-    				moveTo movingAgent = new moveTo(peasant, location, i, state2);  
-    				if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
+    				Position location = new Position(resources.get(i).x, resources.get(i).y);
+    				moveTo movingAgent = new moveTo(peasant, location, i, this);  
+    				if(movingAgent.preconditionsMet(this)) {	//checks to see if agent can move to desired location
     					allActions.add(movingAgent);           		
     				}// if passes precondition, gets new gamestate with agent at that location
-    				harvest harvestwood = new harvest(peasant,location, i, state2);
-    				if(harvestwood.preconditionsMet(state2))
+    				harvest harvestwood = new harvest(peasant,location, i, this);
+    				if(harvestwood.preconditionsMet(this))
     					allActions.add(harvestwood);
             	//I can make all these precondition checks and additions into a single method.
     			}
         	}    		
     			Position location = new Position(state.getUnit(townHallId).getXPosition(),state.getUnit(townHallId).getYPosition());
-        		moveTo movingAgent = new moveTo(peasant, location, townHallId, state2);  
-            	if(movingAgent.preconditionsMet(state2)) {	//checks to see if agent can move to desired location
+        		moveTo movingAgent = new moveTo(peasant, location, townHallId, this);  
+            	if(movingAgent.preconditionsMet(this)) {	//checks to see if agent can move to desired location
             		allActions.add(movingAgent);           		
             	}// if passes precondition, gets new gamestate with agent at that location
-            	deposit depositwood = new deposit(peasant,location, townHallId, state2);
-            	if(depositwood.preconditionsMet(state2))
+            	deposit depositwood = new deposit(peasant,location, townHallId, this);
+            	if(depositwood.preconditionsMet(this))
             		allActions.add(depositwood);
-             	deposit depositgold = new deposit(peasant,location, townHallId, state2);
-            	if(depositgold.preconditionsMet(state2))
+             	deposit depositgold = new deposit(peasant,location, townHallId, this);
+            	if(depositgold.preconditionsMet(this))
             		allActions.add(depositgold);
-            	buildPeasants babymaker = new buildPeasants(peasant, location, townHallId, state2); 
-            	if (babymaker.preconditionsMet(state2))
-            		allActions.add(babymaker);
     	//generatePermutations(allActions, new ArrayList<ArrayList<StripsAction>>(), 0, null);
       /*  ArrayList<ArrayList<StripsAction>> actionCombinations = permute(allActions, 
         		new ArrayList<ArrayList<StripsAction>>(), new ArrayList<StripsAction>(), 0); 
@@ -237,10 +234,10 @@ public class GameState implements Comparable<GameState> {
      *
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
-    public double heuristic() { //time it takes to walk to resource and back if gathering took no time
+    public double heuristic() { //distance from townhall + time it takes to harvest. definitely not consistent
         int remainingGoldCost = requiredGold - currentGold; //time it takes to harvest 
         int remainingWoodCost = requiredWood - currentWood; //time it takes to harvest that much wood
-        return remainingGoldCost + remainingWoodCost +
+        return remainingGoldCost + remainingWoodCost - peasant.getGold() - peasant.getWood() +
         		peasant.getPosition().euclideanDistance(new Position(state.getUnit(townHallId).getXPosition(), state.getUnit(townHallId).getYPosition()));
     }
 
@@ -264,7 +261,7 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int compareTo(GameState o) { //doesn't that mean priorityqueue is a minheap
-        if (o.getCost() + o.heuristic() > getCost() + heuristic())
+    	 if (o.getCost() + o.heuristic() > getCost() + heuristic())
         	return -1;
         if (o.getCost() + o.heuristic() < getCost() + heuristic())
         	return 1;

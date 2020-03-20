@@ -51,10 +51,9 @@ public class PlannerAgent extends Agent {
         // write the plan to a text file
         savePlan(plan);
 
-
         // Instantiates the PEAgent with the specified plan.
         peAgent = new PEAgent(playernum, plan);
-
+        
         return peAgent.initialStep(stateView, historyView);
     }
 
@@ -98,25 +97,27 @@ public class PlannerAgent extends Agent {
     	List<GameState> children = null;
         open.add(startState);
         while (open.size() != 0) { 
+        	System.out.println("open list size " + open.size());
         	GameState current = open.poll(); //get the cheapest node   	     
         	if (current.isGoal()) //if the goal is found
-        		return tracePath(current.camefrom); //helper method that traces from goal	
+        		return tracePath(current.camefrom); //helper method that traces actions to reach goal	
         	closed.putIfAbsent(current.hashCode(), current); //add current to closed list
-        	children = current.generateChildren();	            
-        	for(GameState child : children)
-        	{
+        	children = current.generateChildren();	           
+        	System.out.println("size of generated children is " + children.size());
+        	for(GameState child : children){
         		GameState hashVal = closed.get(child.hashCode());
     			if (hashVal == null || (child.equals(hashVal) && child.cost < hashVal.cost)) //if current has never been visited, or if cheaper than what's already visited
     					open.add(child); 	    //adds to open list if temp is cheaper than other paths to temp in closed list
-
-    			}
-        	}
+    		}
+        }
+        System.out.println("we failed");
     		return path;  
 
-        }
+    }
     
     //trace back the path from the goal node		
     public Stack<StripsAction> tracePath(StripsAction goal) {
+    	System.out.println("hey we found the goal!");
     	Stack<StripsAction> path = new Stack<StripsAction>();
     	for (StripsAction parent = goal.getCameFrom(); parent.getCameFrom() != null; parent = parent.getCameFrom()) { 
     		path.push(parent);

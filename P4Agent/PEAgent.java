@@ -1,13 +1,16 @@
 package P4Agent;
 
-
 import edu.cwru.sepia.action.Action;
+import edu.cwru.sepia.action.ActionFeedback;
+import edu.cwru.sepia.action.ActionResult;
 import edu.cwru.sepia.agent.Agent;
 import edu.cwru.sepia.environment.model.history.History;
+import edu.cwru.sepia.environment.model.state.ResourceNode.Type;
 import edu.cwru.sepia.environment.model.state.ResourceType;
 import edu.cwru.sepia.environment.model.state.State;
 import edu.cwru.sepia.environment.model.state.Template;
 import edu.cwru.sepia.environment.model.state.Unit;
+import edu.cwru.sepia.util.Direction;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -17,12 +20,12 @@ import java.util.Stack;
 
 /**
  * This is an outline of the PEAgent. Implement the provided methods. You may add your own methods and members.
+ * it converts our plan into action
  */
-//converts the planned actions in PlannerAgent into actual actions
 public class PEAgent extends Agent {
 
     // The plan being executed
-    private Stack<StripsAction> plan = null;
+    private Stack<StripsAction> plan;
 
     // maps the real unit Ids to the plan's unit ids
     // when you're planning you won't know the true unit IDs that sepia assigns. So you'll use placeholders (1, 2, 3).
@@ -30,16 +33,20 @@ public class PEAgent extends Agent {
     private Map<Integer, Integer> peasantIdMap;
     private int townhallId;
     private int peasantTemplateId;
+    
 
     public PEAgent(int playernum, Stack<StripsAction> plan) {
         super(playernum);
         peasantIdMap = new HashMap<Integer, Integer>();
         this.plan = plan;
-
+        System.out.println("size of plan " + plan.size());
     }
 
     @Override
     public Map<Integer, Action> initialStep(State.StateView stateView, History.HistoryView historyView) {
+    	while (plan.size() > 0) {
+    		System.out.println(plan.pop().toString());
+    	}
         // gets the townhall ID and the peasant ID
         for(int unitId : stateView.getUnitIds(playernum)) {
             Unit.UnitView unit = stateView.getUnit(unitId);
@@ -47,7 +54,7 @@ public class PEAgent extends Agent {
             if(unitType.equals("townhall")) {
                 townhallId = unitId;
             } else if(unitType.equals("peasant")) {
-                peasantIdMap.put(unitId, unitId);
+                peasantIdMap.put(1, unitId); //this needs to be changed. we put the peasantId from our plan into here
             }
         }
 
@@ -58,7 +65,10 @@ public class PEAgent extends Agent {
                 break;
             }
         }
-        return middleStep(stateView, historyView);
+		int unitId = peasantIdMap.get(1); //gets sepia assigned id of peasant
+    	Map<Integer, Action> actions = new HashMap<Integer, Action>();
+        actions.put(unitId, createSepiaAction(plan.pop())); // puts Map of unitId and Action in actions
+        return actions;
     }
 
     /**
@@ -85,10 +95,16 @@ public class PEAgent extends Agent {
      */
     @Override
     public Map<Integer, Action> middleStep(State.StateView stateView, History.HistoryView historyView) {
-        // TODO: Implement me!
-    	//if (gamestate.isGoal())
-    	//	return null;
-        return null;
+    	Map<Integer, Action> actions = new HashMap<Integer, Action>();
+    	if(plan.isEmpty()) 
+    		return null;
+    	int unitId = peasantIdMap.get(1); //gets sepia assigned id of peasant. but it doesn't
+    	if (stateView.getTurnNumber() > 1) {
+    		ActionResult feedback = historyView.getCommandFeedback(playernum, stateView.getTurnNumber() - 1).get(unitId);
+    	if(feedback == null || feedback.getFeedback() == ActionFeedback.FAILED) //checks to see if action is still going
+        	actions.put(unitId, createSepiaAction(plan.pop())); // puts Map of unitId and Action in actions
+    	}
+    	return actions;
     }
 
     /**
@@ -115,7 +131,7 @@ public class PEAgent extends Agent {
      * @return SEPIA representation of same action
      */
     private Action createSepiaAction(StripsAction action) {
-        return action.toSepiaAction();
+         return action.toSepiaAction(); //decided to do actual conversion within strips actions
     }
 
     @Override

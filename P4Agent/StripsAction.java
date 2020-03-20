@@ -6,6 +6,7 @@ import HW2.src.edu.cwru.sepia.agent.AStarAgent;
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.environment.model.state.ResourceNode;
 import edu.cwru.sepia.environment.model.state.State;
+import edu.cwru.sepia.util.Direction;
 
 /**
  * A useful start of an interface representing strips actions. You may add new methods to this interface if needed, but
@@ -65,11 +66,13 @@ class moveTo implements StripsAction{
 		locationpos = location;
 		locationId = locId;
 		camefrom = state.camefrom;
+		//Direction dir = peasant.getPosition().getDirection(locationpos);
+		//locationpos = new Position()
 	}
 	@Override
-	//determines if agent position is equal to location position
+	//determines if agent position is not equal to location position
 	public boolean preconditionsMet(GameState state) {
-		return peasant.getPosition().equals(locationpos);
+		return !state.isGoal() && !peasant.getPosition().equals(locationpos);
 	}
 	@Override
 	public GameState apply(GameState state) {
@@ -94,47 +97,7 @@ class moveTo implements StripsAction{
 		return Action.createCompoundMove(peasant.getId(), locationpos.x, locationpos.y);
 	}
 }
-class buildPeasants implements StripsAction{
-	Daniel peasant;
-	Position locationpos;
-	int locationId;
-	StripsAction camefrom;
-	int cost;
-	//Initializes agents position and location the agent wants go to 
-	public buildPeasants(Daniel agent, Position location, int locId, GameState state)
-	{
-		peasant = agent;
-		locationpos = location;
-		locationId = locId;
-		camefrom = state.camefrom;
-	}
-	@Override
-	public boolean preconditionsMet(GameState state) {
-		return (!state.isGoal() && peasant.getPosition().isAdjacent(locationpos)&&(state.currentGold==400));
-	}
 
-	@Override
-	public GameState apply(GameState state) {
-		peasant = peasant.makeCopy();
-		return new GameState(peasant, state.resources, state.currentGold, state.currentWood, (int)state.cost+1, this,state);
-	}
-	@Override
-	//returns StripsAction took to get to this state
-	public StripsAction getCameFrom() {
-		return camefrom;
-	}
-	
-	@Override
-	public String toString() {
-		return "Agent " + peasant.getId() + " BUILDPEASANT(" + locationpos.x+1 + ", " + locationpos.y+1 + ")";
-	}
-	
-	@Override
-	public Action toSepiaAction() {
-		return Action.createCompoundBuild(peasant.getId(), 26, locationpos.x+1, locationpos.y+1);
-	}
-	
-}
 class deposit implements StripsAction{
 	Daniel peasant;
 	Position locationpos;
@@ -150,7 +113,7 @@ class deposit implements StripsAction{
 	}
 	@Override
 	public boolean preconditionsMet(GameState state) {
-		return (state.isGoal() && (peasant.getPosition().equals(locationpos) || peasant.getPosition().isAdjacent(locationpos)));
+		return (!state.isGoal() && peasant.getPosition().isAdjacent(locationpos) && peasant.hasResource());	
 	}
 
 	@Override
@@ -178,7 +141,6 @@ class deposit implements StripsAction{
 	public Action toSepiaAction() {
 		return Action.createPrimitiveDeposit(peasant.getId(), peasant.getPosition().getDirection(locationpos));
 	}
-	
 }
 class harvest implements StripsAction{
 	Daniel peasant;
@@ -198,19 +160,20 @@ class harvest implements StripsAction{
 	}
 	@Override
 	public boolean preconditionsMet(GameState state) {
-		return (!state.isGoal() && (peasant.getPosition().isAdjacent(locationpos) || peasant.getPosition().equals(locationpos))); //makes sure state isn't goal state and that the agent is next to harvest location
+		return !state.isGoal() && peasant.getPosition().isAdjacent(locationpos) && !peasant.hasResource(); //makes sure state isn't goal state and that the agent is next to harvest location
 	}
 	@Override
 	public GameState apply(GameState state) { 
 		peasant = peasant.makeCopy();
 		Nacho resource = resources.get(locationId);
+		int amount = Math.min(100, resource.cheeseRemaining);
 		if(resource.isGold)  //determine where it collected the resource from				
-			peasant.setGold(100);				
+			peasant.setGold(amount);				
 		else 
-			peasant.setWood(100);
-		if ((resource.cheeseRemaining -= 100) <= 0)
+			peasant.setWood(amount);
+		if ((resource.cheeseRemaining -= amount) <= 0)
 			resources.remove(locationId);
-		return new GameState(peasant, resources, state.currentGold, state.currentWood, (int)state.cost+100, this,state);
+		return new GameState(peasant, resources, state.currentGold, state.currentWood, (int)state.cost+amount, this,state);
 			//returns new GameState with updated class variables and stripsAction that led to this GameState	
 	}
 
