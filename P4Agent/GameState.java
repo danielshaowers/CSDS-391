@@ -56,7 +56,6 @@ public class GameState implements Comparable<GameState> {
 	int currentWood = 0;
 	double cost;
 	boolean buildPeasants;
-	Position agent; //what is this? why only one
 	List<Integer> goldmines = new ArrayList<Integer>();
 	List<Integer> tree = new ArrayList<Integer>();
 	int townHallId;
@@ -131,7 +130,7 @@ public class GameState implements Comparable<GameState> {
     	this.peasantId = peasant.getId();
 		this.townHallId = state.townHallId;
 		this.state = state.state;
-		this.cost = state.cost;
+		this.cost = cost;
     }
     
     public HashMap<Integer, Nacho> duplicateResourceMap(){
@@ -151,7 +150,8 @@ public class GameState implements Comparable<GameState> {
      * @return true if the goal conditions are met in this instance of game state.
      */
     public boolean isGoal() {
-        return (currentGold >= requiredGold) && (currentWood >= requiredWood); //checks to see if gold and wood requirement fulfilled
+        //return (currentGold == requiredGold) & (currentWood == requiredWood); //checks to see if gold and wood requirement fulfilled
+    	return currentGold >= requiredGold & currentWood >= requiredWood;
     }
     //might not work. check with the below to see if conceptually the same
     public ArrayList<ArrayList<StripsAction>> permute(List<List<StripsAction>> inputs, ArrayList<ArrayList<StripsAction>> outputs, ArrayList<StripsAction> current, int listNum){
@@ -294,6 +294,9 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int hashCode() {
-        return (int)(31*(currentGold + currentWood + peasant.hashCode() + cost));
+    	// int hash = 17;
+    //	    hash = hash * 31 + peasant.hashCode() + currentGold + currentWood;
+    	return    (int)(31*(currentGold + currentWood + peasant.hashCode() + cost));
+     //   return hash;
     }
 }

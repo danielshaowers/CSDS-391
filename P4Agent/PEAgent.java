@@ -44,9 +44,9 @@ public class PEAgent extends Agent {
 
     @Override
     public Map<Integer, Action> initialStep(State.StateView stateView, History.HistoryView historyView) {
-    	while (plan.size() > 0) {
+    	/*while (plan.size() > 0) {
     		System.out.println(plan.pop().toString());
-    	}
+    	}*/
         // gets the townhall ID and the peasant ID
         for(int unitId : stateView.getUnitIds(playernum)) {
             Unit.UnitView unit = stateView.getUnit(unitId);
