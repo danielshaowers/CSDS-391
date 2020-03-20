@@ -6,23 +6,15 @@ public class Daniel {
 		private Position position;
 		private int gold = 0;
 		private int wood = 0;
-		private int cost = 0;
-		public Daniel(int id, Position pos, int goldAmt, int woodAmt, int cost) {
+		public Daniel(int id, Position pos, int goldAmt, int woodAmt) {
 			this.id = id;
 			position = pos;
 			gold = goldAmt;
 			wood = woodAmt;
-			this.cost = cost;
 		}
 	
 		public Daniel makeCopy() {
-			return new Daniel(id, position, gold, wood, cost);
-		}
-		public int getCost() {
-			return cost;
-		}
-		public void setCost(int c) {
-			this.cost = c;
+			return new Daniel(id, position, gold, wood);
 		}
 		public int getId() {
 			return id;
@@ -70,6 +62,6 @@ public class Daniel {
 		}
 		@Override 
 		public int hashCode() {
-			return 31 * (id + gold + wood + position.hashCode()); 
+			return 31*(gold + wood + position.hashCode()); 
 		}
 }

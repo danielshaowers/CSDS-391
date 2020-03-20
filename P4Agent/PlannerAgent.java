@@ -105,7 +105,6 @@ public class PlannerAgent extends Agent {
         	children = current.generateChildren();	           
         	System.out.println("size of generated children is " + children.size());
         	for(GameState child : children){
-        		System.out.println("COST of CHILD" + child.cost);
         		GameState hashVal = closed.get(child.hashCode());
     			if (hashVal == null || (child.equals(hashVal) && child.cost < hashVal.cost)) //if current has never been visited, or if cheaper than what's already visited
     					open.add(child); 	    //adds to open list if temp is cheaper than other paths to temp in closed list
@@ -120,7 +119,7 @@ public class PlannerAgent extends Agent {
     public Stack<StripsAction> tracePath(StripsAction goal) {
     	System.out.println("hey we found the goal!");
     	Stack<StripsAction> path = new Stack<StripsAction>();
-    	for (StripsAction parent = goal.getCameFrom(); parent != null; parent = parent.getCameFrom()) { 
+    	for (StripsAction parent = goal; parent != null; parent = parent.getCameFrom()) { 
     		path.push(parent);
     	}
     	return path;

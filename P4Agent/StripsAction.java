@@ -87,7 +87,7 @@ class moveTo implements StripsAction{
 		peasant = peasant.makeCopy();
 		int cost = (int)(state.getCost() + minDist * 16);
 		peasant.setPosition(locationpos);
-		return new GameState(peasant, state.resources, state.currentGold, state.currentWood, cost, this, state);
+		return new GameState(peasant, state.resources, 0, 0, cost, this, state);
 	}
 
 	@Override
@@ -187,7 +187,7 @@ class harvest implements StripsAction{
 		}
 		if ((resource.cheeseRemaining -= amount) <= 0)
 			resources.remove(locationId);
-		return new GameState(peasant, resources, state.currentGold, state.currentWood, (int)state.cost+duration, this,state);
+		return new GameState(peasant, resources, 0, 0, (int)state.cost+duration, this,state);
 			//returns new GameState with updated class variables and stripsAction that led to this GameState	
 	}
 

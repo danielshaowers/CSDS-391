@@ -95,7 +95,7 @@ public class GameState implements Comparable<GameState> {
 					else
 						goldheld = unit.getCargoAmount();
 				}
-				peasant = new Daniel(id, new Position(unit.getXPosition(), unit.getYPosition()), goldheld, woodheld, 0);
+				peasant = new Daniel(id, new Position(unit.getXPosition(), unit.getYPosition()), goldheld, woodheld);
 			}
     	}
     	//NOTE I CHANGED THIS PLAYERNUM FROM TOWNHALLID
@@ -151,7 +151,7 @@ public class GameState implements Comparable<GameState> {
      */
     public boolean isGoal() {
         //return (currentGold == requiredGold) & (currentWood == requiredWood); //checks to see if gold and wood requirement fulfilled
-    	return currentGold >= requiredGold & currentWood >= requiredWood;
+    	return currentGold == requiredGold && currentWood == requiredWood;
     }
     //might not work. check with the below to see if conceptually the same
     public ArrayList<ArrayList<StripsAction>> permute(List<List<StripsAction>> inputs, ArrayList<ArrayList<StripsAction>> outputs, ArrayList<StripsAction> current, int listNum){
@@ -236,12 +236,11 @@ public class GameState implements Comparable<GameState> {
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
     public double heuristic() { //distance from townhall + time it takes to harvest. definitely not consistent
-    //    int remainingGoldCost = requiredGold - currentGold; //time it takes to harvest 
-      //  int remainingWoodCost = requiredWood - currentWood; //time it takes to harvest that much wood
-       // return remainingGoldCost + remainingWoodCost; 
-        		//- peasant.getGold() - peasant.getWood() +
-        		//peasant.getPosition().euclideanDistance(new Position(state.getUnit(townHallId).getXPosition(), state.getUnit(townHallId).getYPosition()));
-    	return 0;
+        int remainingGoldCost = 2*Math.max(0, requiredGold - currentGold - peasant.getGold()); //time it takes to harvest 
+        int remainingWoodCost = 10*Math.max(0, requiredWood - currentWood - peasant.getWood()); //time it takes to harvest that much wood
+        return remainingGoldCost + remainingWoodCost + 
+        		peasant.getPosition().euclideanDistance(new Position(state.getUnit(townHallId).getXPosition(),
+        		state.getUnit(townHallId).getYPosition())) * 16;
     }
 
     /**
@@ -267,8 +266,9 @@ public class GameState implements Comparable<GameState> {
     	 if (o.getCost() + o.heuristic() > getCost() + heuristic())
         	return -1;
         if (o.getCost() + o.heuristic() < getCost() + heuristic())
-        	return 1;
+        	return 1; 
         return 0;
+    	
     }
 
     /**
@@ -294,9 +294,14 @@ public class GameState implements Comparable<GameState> {
      */
     @Override
     public int hashCode() {
-    	// int hash = 17;
-    //	    hash = hash * 31 + peasant.hashCode() + currentGold + currentWood;
-    	return    (int)(31*(currentGold + currentWood + peasant.hashCode() + cost));
+    	 int hash = 17;
+   	    hash = hash * 31 + peasant.getGold();
+   	    hash = hash * 31 + peasant.getWood();
+   	    hash = hash + peasant.getPosition().hashCode();
+   	    hash = hash * 31 + currentGold;
+   	    hash = hash * 31 + currentWood;
+   // 	return 31*(currentGold + currentWood + peasant.hashCode());
+   	    return hash;
      //   return hash;
     }
 }
