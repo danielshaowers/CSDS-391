@@ -150,7 +150,6 @@ public class Position {
             return Direction.NORTHWEST;
         }
 
-        System.err.println("Position not adjacent. Could not determine direction");
         return null;
     }
 

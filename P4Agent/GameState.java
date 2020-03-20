@@ -47,7 +47,7 @@ import java.util.Map;
  * class/structure you use to represent actions.
  */
 public class GameState implements Comparable<GameState> {
-	Daniel peasant; 
+	private Daniel peasant; 
 	HashMap<Integer, Nacho> resources = new HashMap<Integer, Nacho>();
 	StateView state;
 	int requiredGold;
@@ -131,6 +131,7 @@ public class GameState implements Comparable<GameState> {
     	this.peasantId = peasant.getId();
 		this.townHallId = state.townHallId;
 		this.state = state.state;
+		this.cost = state.cost;
     }
     
     public HashMap<Integer, Nacho> duplicateResourceMap(){
@@ -235,10 +236,12 @@ public class GameState implements Comparable<GameState> {
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
     public double heuristic() { //distance from townhall + time it takes to harvest. definitely not consistent
-        int remainingGoldCost = requiredGold - currentGold; //time it takes to harvest 
-        int remainingWoodCost = requiredWood - currentWood; //time it takes to harvest that much wood
-        return remainingGoldCost + remainingWoodCost - peasant.getGold() - peasant.getWood() +
-        		peasant.getPosition().euclideanDistance(new Position(state.getUnit(townHallId).getXPosition(), state.getUnit(townHallId).getYPosition()));
+    //    int remainingGoldCost = requiredGold - currentGold; //time it takes to harvest 
+      //  int remainingWoodCost = requiredWood - currentWood; //time it takes to harvest that much wood
+       // return remainingGoldCost + remainingWoodCost; 
+        		//- peasant.getGold() - peasant.getWood() +
+        		//peasant.getPosition().euclideanDistance(new Position(state.getUnit(townHallId).getXPosition(), state.getUnit(townHallId).getYPosition()));
+    	return 0;
     }
 
     /**
@@ -260,7 +263,7 @@ public class GameState implements Comparable<GameState> {
      * @return 1 if this state costs more than the other, 0 if equal, -1 otherwise
      */
     @Override
-    public int compareTo(GameState o) { //doesn't that mean priorityqueue is a minheap
+    public int compareTo(GameState o) { 
     	 if (o.getCost() + o.heuristic() > getCost() + heuristic())
         	return -1;
         if (o.getCost() + o.heuristic() < getCost() + heuristic())

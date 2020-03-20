@@ -1,6 +1,7 @@
 package P4Agent;
 
 import java.util.HashMap;
+import java.util.List;
 
 import HW2.src.edu.cwru.sepia.agent.AStarAgent;
 import edu.cwru.sepia.action.Action;
@@ -57,6 +58,7 @@ class moveTo implements StripsAction{
 	int locationId;
 	StripsAction camefrom;
 	int cost;
+	double minDist = Double.POSITIVE_INFINITY;
 	
 	
 	//Initializes agents position and location the agent wants go to 
@@ -66,8 +68,14 @@ class moveTo implements StripsAction{
 		locationpos = location;
 		locationId = locId;
 		camefrom = state.camefrom;
-		//Direction dir = peasant.getPosition().getDirection(locationpos);
-		//locationpos = new Position()
+		double tempDist = 0;
+		for (Position adj : locationpos.getAdjacentPositions()) {
+			tempDist = peasant.getPosition().euclideanDistance(adj);
+			if (minDist > tempDist) {
+				minDist = tempDist;
+				locationpos = adj;
+			}
+		}
 	}
 	@Override
 	//determines if agent position is not equal to location position
@@ -75,9 +83,9 @@ class moveTo implements StripsAction{
 		return !state.isGoal() && !peasant.getPosition().equals(locationpos);
 	}
 	@Override
-	public GameState apply(GameState state) {
+	public GameState apply(GameState state) {		
 		peasant = peasant.makeCopy();
-		int cost = (int)(state.getCost() + peasant.getPosition().euclideanDistance(locationpos) * 16 - 16);
+		int cost = (int)(state.getCost() + minDist * 16);
 		peasant.setPosition(locationpos);
 		return new GameState(peasant, state.resources, state.currentGold, state.currentWood, cost, this, state);
 	}
@@ -113,7 +121,7 @@ class deposit implements StripsAction{
 	}
 	@Override
 	public boolean preconditionsMet(GameState state) {
-		return (!state.isGoal() && peasant.getPosition().isAdjacent(locationpos) && peasant.hasResource());	
+		return !state.isGoal() && peasant.getPosition().isAdjacent(locationpos) && peasant.hasResource();	
 	}
 
 	@Override
@@ -149,6 +157,7 @@ class harvest implements StripsAction{
 	int locationId;
 	StripsAction camefrom;
 
+
 	//Initializes agents position and location the agent wants go to 
 	public harvest(Daniel agent, Position location, int locId, GameState state)
 	{
@@ -167,13 +176,18 @@ class harvest implements StripsAction{
 		peasant = peasant.makeCopy();
 		Nacho resource = resources.get(locationId);
 		int amount = Math.min(100, resource.cheeseRemaining);
-		if(resource.isGold)  //determine where it collected the resource from				
-			peasant.setGold(amount);				
-		else 
+		int duration;
+		if(resource.isGold) {  //determine where it collected the resource from				
+			peasant.setGold(amount);
+			duration = 200;
+		}
+		else {
 			peasant.setWood(amount);
+			duration = 1000;
+		}
 		if ((resource.cheeseRemaining -= amount) <= 0)
 			resources.remove(locationId);
-		return new GameState(peasant, resources, state.currentGold, state.currentWood, (int)state.cost+amount, this,state);
+		return new GameState(peasant, resources, state.currentGold, state.currentWood, (int)state.cost+duration, this,state);
 			//returns new GameState with updated class variables and stripsAction that led to this GameState	
 	}
 

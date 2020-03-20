@@ -98,7 +98,8 @@ public class PlannerAgent extends Agent {
         open.add(startState);
         while (open.size() != 0) { 
         	System.out.println("open list size " + open.size());
-        	GameState current = open.poll(); //get the cheapest node   	     
+        	GameState current = open.poll(); //get the cheapest node 
+        	System.out.println("REQUIRED GOLD: " + startState.requiredGold + "\nREQUIRED WOOD" + startState.requiredWood);
         	if (current.isGoal()) //if the goal is found
         		return tracePath(current.camefrom); //helper method that traces actions to reach goal	
         	closed.putIfAbsent(current.hashCode(), current); //add current to closed list
@@ -119,7 +120,7 @@ public class PlannerAgent extends Agent {
     public Stack<StripsAction> tracePath(StripsAction goal) {
     	System.out.println("hey we found the goal!");
     	Stack<StripsAction> path = new Stack<StripsAction>();
-    	for (StripsAction parent = goal.getCameFrom(); parent.getCameFrom() != null; parent = parent.getCameFrom()) { 
+    	for (StripsAction parent = goal.getCameFrom(); parent != null; parent = parent.getCameFrom()) { 
     		path.push(parent);
     	}
     	return path;
