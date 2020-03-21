@@ -41,7 +41,7 @@ public class PlannerAgent extends Agent {
     public Map<Integer, Action> initialStep(State.StateView stateView, History.HistoryView historyView) {
 
         Stack<StripsAction> plan = AstarSearch(new GameState(stateView, playernum, requiredGold, requiredWood, buildPeasants));
-
+        
         if(plan == null) {
             System.err.println("No plan was found");
             System.exit(1);
@@ -50,7 +50,7 @@ public class PlannerAgent extends Agent {
 
         // write the plan to a text file
         savePlan(plan);
-
+        
         // Instantiates the PEAgent with the specified plan.
         peAgent = new PEAgent(playernum, plan);
         
@@ -97,7 +97,6 @@ public class PlannerAgent extends Agent {
     	List<GameState> children = null;
         open.add(startState);
         while (open.size() != 0) { 
-        	System.out.println("open list size " + open.size());
         	GameState current = open.poll(); //get the cheapest node 
         	if (current.isGoal()) //if the goal is found
         		return tracePath(current.camefrom); //helper method that traces actions to reach goal	

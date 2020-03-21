@@ -53,7 +53,7 @@ public interface StripsAction {
 
 //Strips action classes that implement interface
 class moveTo implements StripsAction{
-	Daniel peasant;
+	Peasant peasant;
 	Position locationpos;
 	int locationId;
 	StripsAction camefrom;
@@ -62,7 +62,7 @@ class moveTo implements StripsAction{
 	
 	
 	//Initializes agents position and location the agent wants go to 
-	public moveTo(Daniel agent, Position location, int locId, GameState state)
+	public moveTo(Peasant agent, Position location, int locId, GameState state)
 	{
 		peasant = agent;
 		locationpos = location;
@@ -85,7 +85,7 @@ class moveTo implements StripsAction{
 	@Override
 	public GameState apply(GameState state) {		
 		peasant = peasant.makeCopy();
-		int cost = (int)(state.getCost() + minDist * 16);
+		int cost = (int)(state.getCost() + minDist);
 		peasant.setPosition(locationpos);
 		return new GameState(peasant, state.resources, 0, 0, cost, this, state);
 	}
@@ -107,12 +107,12 @@ class moveTo implements StripsAction{
 }
 
 class deposit implements StripsAction{
-	Daniel peasant;
+	Peasant peasant;
 	Position locationpos;
 	int locationId;
 	StripsAction camefrom;
 	//Initializes agents position and location the agent wants go to 
-	public deposit(Daniel agent, Position location, int locId, GameState state)
+	public deposit(Peasant agent, Position location, int locId, GameState state)
 	{
 		peasant = agent;
 		locationpos = location;
@@ -131,7 +131,7 @@ class deposit implements StripsAction{
 		int goldDeposit = peasant.getGold();
 		peasant.setWood(0);
 		peasant.setGold(0);
-		return new GameState(peasant, state.resources, woodDeposit, goldDeposit, (int)state.cost+25, this,state);
+		return new GameState(peasant, state.resources, woodDeposit, goldDeposit, (int)state.cost+1, this,state); //previously + 25
 		//is this cost correct?
 	}
 	@Override
@@ -151,15 +151,15 @@ class deposit implements StripsAction{
 	}
 }
 class harvest implements StripsAction{
-	Daniel peasant;
-	HashMap<Integer, Nacho> resources;
+	Peasant peasant;
+	HashMap<Integer, Resource> resources;
 	Position locationpos;
 	int locationId;
 	StripsAction camefrom;
 
 
 	//Initializes agents position and location the agent wants go to 
-	public harvest(Daniel agent, Position location, int locId, GameState state)
+	public harvest(Peasant agent, Position location, int locId, GameState state)
 	{
 		peasant = agent;
 		resources = state.duplicateResourceMap();
@@ -174,8 +174,8 @@ class harvest implements StripsAction{
 	@Override
 	public GameState apply(GameState state) { 
 		peasant = peasant.makeCopy();
-		Nacho resource = resources.get(locationId);
-		int amount = Math.min(100, resource.cheeseRemaining);
+		Resource resource = resources.get(locationId);
+		int amount = Math.min(100, resource.remaining);
 		int duration;
 		if(resource.isGold) {  //determine where it collected the resource from				
 			peasant.setGold(amount);
@@ -185,7 +185,8 @@ class harvest implements StripsAction{
 			peasant.setWood(amount);
 			duration = 1000;
 		}
-		if ((resource.cheeseRemaining -= amount) <= 0)
+		duration = 1;
+		if ((resource.remaining -= amount) <= 0)
 			resources.remove(locationId);
 		return new GameState(peasant, resources, 0, 0, (int)state.cost+duration, this,state);
 			//returns new GameState with updated class variables and stripsAction that led to this GameState	

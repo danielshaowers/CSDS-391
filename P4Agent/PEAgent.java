@@ -44,9 +44,6 @@ public class PEAgent extends Agent {
 
     @Override
     public Map<Integer, Action> initialStep(State.StateView stateView, History.HistoryView historyView) {
-    	/*while (plan.size() > 0) {
-    		System.out.println(plan.pop().toString());
-    	}*/
         // gets the townhall ID and the peasant ID
         for(int unitId : stateView.getUnitIds(playernum)) {
             Unit.UnitView unit = stateView.getUnit(unitId);
@@ -54,7 +51,7 @@ public class PEAgent extends Agent {
             if(unitType.equals("townhall")) {
                 townhallId = unitId;
             } else if(unitType.equals("peasant")) {
-                peasantIdMap.put(1, unitId); //this needs to be changed. we put the peasantId from our plan into here
+                peasantIdMap.put(1, unitId); 
             }
         }
 

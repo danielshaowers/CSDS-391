@@ -47,8 +47,8 @@ import java.util.Map;
  * class/structure you use to represent actions.
  */
 public class GameState implements Comparable<GameState> {
-	private Daniel peasant; 
-	HashMap<Integer, Nacho> resources = new HashMap<Integer, Nacho>();
+	private Peasant peasant; 
+	HashMap<Integer, Resource> resources = new HashMap<Integer, Resource>();
 	StateView state;
 	int requiredGold;
 	int requiredWood;
@@ -95,7 +95,7 @@ public class GameState implements Comparable<GameState> {
 					else
 						goldheld = unit.getCargoAmount();
 				}
-				peasant = new Daniel(id, new Position(unit.getXPosition(), unit.getYPosition()), goldheld, woodheld);
+				peasant = new Peasant(id, new Position(unit.getXPosition(), unit.getYPosition()), goldheld, woodheld);
 			}
     	}
     	//NOTE I CHANGED THIS PLAYERNUM FROM TOWNHALLID
@@ -108,15 +108,15 @@ public class GameState implements Comparable<GameState> {
     		ResourceView resource = state.getResourceNode(id);
 			if(resource.getType().equals(ResourceNode.Type.GOLD_MINE)) {
     			goldmines.add(id);    			
-    			resources.put(id, new Nacho(resource.getXPosition(), resource.getYPosition(), resource.getAmountRemaining(), id, true));
+    			resources.put(id, new Resource(resource.getXPosition(), resource.getYPosition(), resource.getAmountRemaining(), id, true));
     		}
 			else if(resource.getType().equals(ResourceNode.Type.TREE)) {
 				tree.add(id);
-				resources.put(id, new Nacho(resource.getXPosition(), resource.getYPosition(), resource.getAmountRemaining(), id, false));
+				resources.put(id, new Resource(resource.getXPosition(), resource.getYPosition(), resource.getAmountRemaining(), id, false));
 			}
     	}	
     }
-    public GameState(Daniel peasant, HashMap<Integer, Nacho> resource, int golddepoist, int wooddeposit, int cost, StripsAction action, GameState state){
+    public GameState(Peasant peasant, HashMap<Integer, Resource> resource, int golddepoist, int wooddeposit, int cost, StripsAction action, GameState state){
     	//initialzes everything
     	this.goldmines = state.goldmines;
     	this.resources = resource;
@@ -133,8 +133,8 @@ public class GameState implements Comparable<GameState> {
 		this.cost = cost;
     }
     
-    public HashMap<Integer, Nacho> duplicateResourceMap(){
-    	HashMap<Integer, Nacho> next = new HashMap<Integer, Nacho>();
+    public HashMap<Integer, Resource> duplicateResourceMap(){
+    	HashMap<Integer, Resource> next = new HashMap<Integer, Resource>();
     	for (Integer i : state.getAllResourceIds()) {
     		if (resources.get(i) != null)
     			next.put(i, resources.get(i).makeCopy());
@@ -236,11 +236,9 @@ public class GameState implements Comparable<GameState> {
      * @return The value estimated remaining cost to reach a goal state from this state.
      */
     public double heuristic() { //distance from townhall + time it takes to harvest. definitely not consistent
-        int remainingGoldCost = 2*Math.max(0, requiredGold - currentGold - peasant.getGold()); //time it takes to harvest 
-        int remainingWoodCost = 10*Math.max(0, requiredWood - currentWood - peasant.getWood()); //time it takes to harvest that much wood
-        return remainingGoldCost + remainingWoodCost + 
-        		peasant.getPosition().euclideanDistance(new Position(state.getUnit(townHallId).getXPosition(),
-        		state.getUnit(townHallId).getYPosition())) * 16;
+       int remainingGoldCost = Math.max(0, requiredGold - currentGold - peasant.getGold());
+       int remainingWoodCost = Math.max(0, requiredWood - currentWood - peasant.getWood());
+       return remainingGoldCost + remainingWoodCost;
     }
 
     /**
@@ -264,11 +262,10 @@ public class GameState implements Comparable<GameState> {
     @Override
     public int compareTo(GameState o) { 
     	 if (o.getCost() + o.heuristic() > getCost() + heuristic())
-        	return -1;
+    		 return -1;
         if (o.getCost() + o.heuristic() < getCost() + heuristic())
         	return 1; 
         return 0;
-    	
     }
 
     /**
@@ -300,8 +297,6 @@ public class GameState implements Comparable<GameState> {
    	    hash = hash + peasant.getPosition().hashCode();
    	    hash = hash * 31 + currentGold;
    	    hash = hash * 31 + currentWood;
-   // 	return 31*(currentGold + currentWood + peasant.hashCode());
    	    return hash;
-     //   return hash;
     }
 }
