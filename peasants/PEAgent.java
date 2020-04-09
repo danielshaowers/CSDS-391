@@ -42,7 +42,9 @@ public class PEAgent extends Agent {
 	private List<Integer> peasants = new ArrayList<Integer>();
 	private int townhallId;
 	private int peasantTemplateId;
+	private int numPeasants = 1;
 	private int reqWood;
+	private boolean buildingPeasant = false;
 	private HashMap<Integer, Boolean> completedAction = new HashMap<Integer, Boolean>(); //tracks whether our last action was a random move
 	private HashMap<Integer, Action> lastAction = new HashMap<Integer, Action>(); //tracks our last action that was part of the strips plan.
 	private int reqGold;
@@ -62,9 +64,9 @@ public class PEAgent extends Agent {
 		// gets the townhall ID and the peasant ID
 		int peasantCount = 1;
 		System.out.println("Plan ready");
-		/*while (plan.size() > 0)
+		while (plan.size() > 0)
 			System.out.println(plan.pop().toString());
-		System.exit(0); */
+		System.exit(0); 
 		for (int unitId : stateView.getUnitIds(playernum)) {
 			Unit.UnitView unit = stateView.getUnit(unitId);
 			String unitType = unit.getTemplateView().getName().toLowerCase();
@@ -128,39 +130,67 @@ public class PEAgent extends Agent {
 		Map<Integer, Action> actions = new HashMap<Integer, Action>();
 			if (stateView.getTurnNumber() > 2) { // we want to skip the first turn
 				HashMap<Integer, Action> todo = new HashMap<Integer, Action>(); //todo is the next action, lastAction is the previous action 
-				//note that todo has the CORRECT ids
-				//System.out.println("considering the next moves " + plan.peek());
-				if (plan.size() > 0)
-					todo = createSepiaAction(plan.peek(), convertIds(plan.peek().getActorIds(), stateView), stateView); // in case we get a parallel action we want to assign all of them
+				Map<Integer, ActionResult> feedback = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 1);
+				Map<Integer, ActionResult> feedback2 = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 2);
+				
+				if (feedback.get(townhallId) != null && numPeasants > stateView.getUnitIds(playernum).size() -1) {
+					System.out.println(feedback.get(townhallId));// == ActionFeedback.FAILED) {
+					System.out.println("progress " + stateView.getUnit(townhallId).getCurrentDurativeProgress());
+					System.out.println("did the production fail? current gold " + stateView.getResourceAmount(playernum, ResourceType.GOLD));
+					UnitView th = stateView.getUnit(townhallId);
+					for (Integer id: peasantIdMap.values()) {
+						UnitView unit = stateView.getUnit(id);
+						if (Math.abs(unit.getXPosition() - th.getXPosition())< 2 && Math.abs(unit.getYPosition() - th.getYPosition()) < 2) {
+							actions.put(unit.getID(), randomMove(stateView, unit.getID()));
+							completedAction.put(unit.getID(), false);
+						}
+					}
+					actions.put(townhallId, lastAction.get(townhallId));
+					return actions;
+				}
+				if (plan.size() > 0) {
+					int[] actors = convertIds(plan.peek().getActorIds(), stateView);
+					System.out.println("actors is " + actors);
+					if (actors != null)
+						todo = createSepiaAction(plan.peek(), actors, stateView); // in case we get a parallel action we want to assign all of them
+					else
+						todo = null;
+				}
 				else 
 					todo = lastAction;
-				//System.out.println("todo size" + todo.size());
-				//todo gives us all the actions that our actors will do.
-				if (todo.get(townhallId) != null) { //we can add the production action always as long as it's in the plan
-					actions.put(townhallId, todo.get(townhallId));
-					System.out.println("Action completed!" + plan.pop().toString());
-					System.out.println("we found a build action in PEAagent");
-					//todo = createSepiaAction(plan.peek(), plan.peek().getActorIds()); // in case we get a parallel action we want to assign all of them
+				if (todo == null) {					
+					System.out.println("NULLNLSKDNFLASKDNF;ALSKNFSDKLFN");
+					return actions;
 				}
-				else {
-					boolean movePossible = true;
-						Map<Integer, ActionResult> feedback = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 1);
+				if (todo != null) {
+					if (todo.get(townhallId) != null) { //we can add the production action always as long as it's in the plan
+						actions.put(townhallId, todo.get(townhallId));
+						lastAction.put(townhallId, todo.get(townhallId));
+						System.out.println("Action completed: " + plan.pop().toString());
+						System.out.println("sepia version for this action is " + todo.get(townhallId));
+						numPeasants++;
+						return actions;
+						//todo = createSepiaAction(plan.peek(), plan.peek().getActorIds()); // in case we get a parallel action we want to assign all of them
+					}
+					else {
+						boolean movePossible = true;
 						for (int unitId : todo.keySet()) { //get everyone that does something					
 							//check if the units in the action are available
-						if (movePossible) {
-							movePossible = false;
-							ActionResult result = feedback.get(unitId); //result == null 
-							System.out.println("RESULT for unit " + unitId + ": " +  result); //this is the previous turn's result. createSepia is the next turn if possible
-							ActionResult result2 = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 2).get(unitId); //this might fail
-							if (result == null) {// || result.getFeedback() == ActionFeedback.FAILED){  
+							if (movePossible) {
+								movePossible = false;
+								ActionResult result = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 2).get(unitId);
+							//ActionResult result = feedback.get(unitId); //result == null 
+								System.out.println("RESULT for unit " + unitId + ": " +  result); //this is the previous turn's result. createSepia is the next turn if possible
+								ActionResult result2 = feedback2.get(unitId);
+								if (result == null|| result.getFeedback() == ActionFeedback.FAILED){ // ) {// 
 								//if there was an actual conflict, assign a random move
-								if(result2 != null && result2.getFeedback() == ActionFeedback.FAILED) {//.Failed
-									if (stateView.getTurnNumber() > 3) {
-										System.out.println("unit id " + unitId + ", adding a random move");
-										actions.put(unitId, randomMove(stateView, unitId)); 
-										completedAction.put(unitId, false); 
+									if(result2 != null && result2.getFeedback() == ActionFeedback.FAILED) {//.Failed
+										if (stateView.getTurnNumber() > 3) {
+											System.out.println("unit id " + unitId + ", adding a random move");
+											actions.put(unitId, randomMove(stateView, unitId)); 
+											completedAction.put(unitId, false); 
+										}
 									}
-								}
 								//these signal the dude is available
 								if ((result2 != null && result2.getFeedback() == ActionFeedback.COMPLETED) || result2 == null) { //result2 == null removed bc redundnt BUT now we might end up trapped
 									if (!completedAction.get(unitId)) { //if we completed a random move last turn
@@ -176,21 +206,24 @@ public class PEAgent extends Agent {
 									completedAction.put(unitId, false);
 									actions.put(unitId, randomMove(stateView,unitId));
 								}
-						}
+							}
 						}
 						if (movePossible) {
 							//if (plan.peek().preconditionsMet(stateView, playernum, reqGold, reqWood, true, plan.peek())) {
-							System.out.print("finished the previous move"
-									+ "\n beginning " + plan.peek());
 							for (Integer k: todo.keySet()) { //for all of the actors
 								actions.put(k, todo.get(k));
 								lastAction.put(k, todo.get(k));
 							}
-							if (plan.size() > 0)
+							if (plan.size() > 1)
 								plan.pop();
+							System.out.print("finished the previous move"
+									+ "\nbeginning " + plan.peek());
 						}
 					}
+				
 				}
+			}
+			
 		//	atGoal(stateView);
 		return actions;
 	}
@@ -207,26 +240,41 @@ public class PEAgent extends Agent {
 	}
 		//converts keys to values. automatically adds newly encountered Ids
 		public int[] convertIds(int[] stripID, State.StateView state){
-			/*System.out.print("STRIP ID VALS: ");
-			for (int i: stripID)
-				System.out.print(i + ",");
-			System.out.print("\nOur ID VALS:");
-			for (int i: stripID)
-				System.out.print(peasantIdMap.get(i));
-			System.out.println("\n"); */
 			int[] ids = new int[stripID.length];
-			for (int i = 0; i < ids.length; i++) {
+			for (int i = 0; i < stripID.length; i++) { //this should include the newly created agent
 				if (stripID[i] == townhallId)
 					ids[i] = stripID[i];
 				else {
 					if (peasantIdMap.containsKey(stripID[i]))
 						ids[i] = peasantIdMap.get(stripID[i]);
 					else {
-						List<Integer> units = state.getUnitIds(playernum);
-						ids[i] = units.get(units.size() - 1); //gets the most recently addded peasant;
-						peasantIdMap.put(stripID[i], ids[i]);
-						completedAction.put(ids[i], true); //tell them that this unit exists and is available
-					}		
+						//we need to find the id of the newly added unit. 
+						List<Integer> units = state.getUnitIds(playernum); 
+						boolean found = false;
+						if (stripID[0] == townhallId)
+							return stripID;
+						for (int j = 0;!found && j < units.size(); j++) {
+							if (found = (!peasantIdMap.containsValue(units.get(j)) && units.get(j) != townhallId)) {
+								ids[i] = units.get(j);
+								System.out.println("added new peasant w/ strip ID " + stripID[i] + " and sepia id " + ids[i]);
+								peasantIdMap.put(stripID[i], ids[i]);
+								completedAction.put(ids[i], true); //tell them that this unit exists and is available
+							}		
+						} 
+						if (!found) {
+							System.out.print("STRIP ID VALS: ");
+							for (int k: stripID)
+								System.out.print(k + ",");
+							System.out.print("\nOur ID VALS:");
+							for (int k: stripID)
+								System.out.print(peasantIdMap.get(k));
+							System.out.println("\n"); 
+							System.out.println("LIST OF UNITS IN EXISTENCE");
+							for (int k : state.getUnitIds(playernum))
+								System.out.println(k);
+							return null;
+						}
+					}
 				}
 			}
 			return ids;

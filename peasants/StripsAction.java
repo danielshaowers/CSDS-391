@@ -101,7 +101,7 @@ class moveTo implements StripsAction {
 		double tempDist = 0;
 		// technically I don't think I should do this
 		for (Position adj : locationpos.getAdjacentPositions()) {
-			tempDist = peasant.getPosition().chebyshevDistance(adj);
+			tempDist = peasant.getPosition().euclideanDistance(adj);
 			if (minDist > tempDist) {
 				minDist = tempDist;
 				locationpos = adj;
@@ -183,7 +183,7 @@ class moveTo2 implements StripsAction {
 					double tempDist;
 					for (int j = i; j >= 0; j--) {
 						if (!adj.equals(destination[j])) { 
-							tempDist = peasant[i].getPosition().chebyshevDistance(adj); //find the smallest adjacent dist
+							tempDist = peasant[i].getPosition().euclideanDistance(adj); //find the smallest adjacent dist
 							if (minDist[i] > tempDist) {
 								minDist[i] = tempDist;
 								destination[i] = adj;
@@ -286,7 +286,7 @@ class moveTo3 implements StripsAction {
 				for (Position adj : locationpos.getAdjacentPositions()) {
 					for (int j = i; j >= 0; j--) {
 						if (!adj.equals(destination[j])) { 
-							tempDist = peasant[i].getPosition().chebyshevDistance(adj); //find the smallest adjacent dist
+							tempDist = peasant[i].getPosition().euclideanDistance(adj); //find the smallest adjacent dist
 							if (minDist[i] > tempDist) {
 								minDist[i] = tempDist;
 								destination[i] = adj;
@@ -316,9 +316,9 @@ class moveTo3 implements StripsAction {
 	// determines if agent position is not equal to location position
 	public boolean preconditionsMet() {
 		return !gs.isGoal() && numAgents == 3 && !peasant[0].getPosition().equals(destination[0])
-				&& peasant[0].getTurns() < 5 // peasant is available
-				&& !peasant[1].getPosition().equals(destination[1]) && peasant[1].getTurns() < 5
-				&& !peasant[2].getPosition().equals(destination[0]) && peasant[2].getTurns() < 5;
+				&& peasant[0].getTurns() < 3 // peasant is available
+				&& !peasant[1].getPosition().equals(destination[1]) && peasant[1].getTurns() < 3
+				&& !peasant[2].getPosition().equals(destination[0]) && peasant[2].getTurns() < 3;
 	}
 	@Override
 	public boolean preconditionsMet(State.StateView state, int playernum, int requiredGold, int requiredWood, boolean buildPeasants, StripsAction action) {
@@ -384,7 +384,7 @@ class buildPeasant implements StripsAction {
 	
 	@Override 
 	public Position getLocationPos() {
-		return null;
+		return townHall;
 	}
 	@Override
 	public int[] getActorIds() {
@@ -420,7 +420,7 @@ class buildPeasant implements StripsAction {
 		next.peasants.put(baby.getId(), baby);
 		next.currentGold -= 400;
 		next.currentFood--;
-		return new GameState(next, state.cost, this, state);
+		return new GameState(next, state.cost+1, this, state);
 	}
 
 	@Override
@@ -437,7 +437,7 @@ class buildPeasant implements StripsAction {
 	}
 	
 	public String toString() {
-		return "Peasant being built with id " + (next.peasants.size() + 1);
+		return "Peasant being built with id " + (next.peasants.size());
 	}
 }
 
@@ -788,7 +788,7 @@ class harvest implements StripsAction {
 		duration = 1;
 		if (resource.remaining <= 0) // ahh this is where I decrease the resource amount
 			game.resources.remove(locationId);
-		return new GameState(game, (int) state.cost + duration, this, state);
+		return new GameState(game, (int) state.cost + 1, this, state);
 		// returns new GameState with updated class variables and stripsAction that led to this GameState
 	}
 
@@ -848,7 +848,7 @@ class harvest2 implements StripsAction {
 	public boolean preconditionsMet() {
 		boolean met = !gs.isGoal() && numAgents == 2;
 		for (int i = 0; met && i < peasants.length; i++) { // DANIEL: I may want to make the remaining resource 200instead of 100
-			met = game.peasants.get(peasants[i]).getTurns() <= 0 && game.resources.get(locationId).remaining > 100
+			met = game.peasants.get(peasants[i]).getTurns() <= 0 && game.resources.get(locationId).remaining >= 100
 					&& game.peasants.get(peasants[i]).getPosition().isAdjacent(locationpos)
 					&& !game.peasants.get(peasants[i]).hasResource(); // makes sure state isn't goal state and that the
 																		// agent is next to harvest location
@@ -949,7 +949,7 @@ class harvest3 implements StripsAction {
 		boolean met = !gs.isGoal() && numAgents == 3;
 		for (int i = 0; met && i < peasants.length; i++) { // DANIEL: I may want to make the remaining resource 200
 															// instead of 100
-			met = game.peasants.get(peasants[i]).getTurns() <= 0 && game.resources.get(locationId).remaining > 100
+			met = game.peasants.get(peasants[i]).getTurns() <= 0 && game.resources.get(locationId).remaining >= 100
 					&& game.peasants.get(peasants[i]).getPosition().isAdjacent(locationpos)
 					&& !game.peasants.get(peasants[i]).hasResource(); // makes sure state isn't goal state and that the
 																		// agent is next to harvest location
