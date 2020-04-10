@@ -64,9 +64,9 @@ public class PEAgent extends Agent {
 		// gets the townhall ID and the peasant ID
 		int peasantCount = 1;
 		System.out.println("Plan ready");
-		while (plan.size() > 0)
+		/*while (plan.size() > 0)
 			System.out.println(plan.pop().toString());
-		System.exit(0); 
+		System.exit(0); */
 		for (int unitId : stateView.getUnitIds(playernum)) {
 			Unit.UnitView unit = stateView.getUnit(unitId);
 			String unitType = unit.getTemplateView().getName().toLowerCase();
@@ -133,17 +133,16 @@ public class PEAgent extends Agent {
 				Map<Integer, ActionResult> feedback = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 1);
 				Map<Integer, ActionResult> feedback2 = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 2);
 				
-				if (feedback.get(townhallId) != null && numPeasants > stateView.getUnitIds(playernum).size() -1) {
+				if (feedback.get(townhallId) != null && numPeasants > stateView.getUnitIds(playernum).size() - 1) {
 					System.out.println(feedback.get(townhallId));// == ActionFeedback.FAILED) {
 					System.out.println("progress " + stateView.getUnit(townhallId).getCurrentDurativeProgress());
-					System.out.println("did the production fail? current gold " + stateView.getResourceAmount(playernum, ResourceType.GOLD));
+					System.out.println("did the production fail?");
 					UnitView th = stateView.getUnit(townhallId);
 					for (Integer id: peasantIdMap.values()) {
 						UnitView unit = stateView.getUnit(id);
 						if (Math.abs(unit.getXPosition() - th.getXPosition())< 2 && Math.abs(unit.getYPosition() - th.getYPosition()) < 2) {
 							actions.put(unit.getID(), randomMove(stateView, unit.getID()));
-							completedAction.put(unit.getID(), false);
-						}
+					}
 					}
 					actions.put(townhallId, lastAction.get(townhallId));
 					return actions;
@@ -176,21 +175,20 @@ public class PEAgent extends Agent {
 						boolean movePossible = true;
 						for (int unitId : todo.keySet()) { //get everyone that does something					
 							//check if the units in the action are available
-							if (movePossible) {
-								movePossible = false;
-								ActionResult result = historyView.getPrimitiveFeedback(playernum, stateView.getTurnNumber() - 2).get(unitId);
-							//ActionResult result = feedback.get(unitId); //result == null 
-								System.out.println("RESULT for unit " + unitId + ": " +  result); //this is the previous turn's result. createSepia is the next turn if possible
-								ActionResult result2 = feedback2.get(unitId);
-								if (result == null|| result.getFeedback() == ActionFeedback.FAILED){ // ) {// 
+						if (movePossible) {
+							movePossible = false;
+							ActionResult result = feedback.get(unitId); //result == null 
+							System.out.println("RESULT for unit " + unitId + ": " +  result); //this is the previous turn's result. createSepia is the next turn if possible
+							ActionResult result2 = feedback2.get(unitId);
+							if (result == null|| result.getFeedback() == ActionFeedback.FAILED){ // ) {// 
 								//if there was an actual conflict, assign a random move
-									if(result2 != null && result2.getFeedback() == ActionFeedback.FAILED) {//.Failed
-										if (stateView.getTurnNumber() > 3) {
-											System.out.println("unit id " + unitId + ", adding a random move");
-											actions.put(unitId, randomMove(stateView, unitId)); 
-											completedAction.put(unitId, false); 
-										}
+								if(result2 != null && result2.getFeedback() == ActionFeedback.FAILED) {//.Failed
+									if (stateView.getTurnNumber() > 3) {
+										System.out.println("unit id " + unitId + ", adding a random move");
+										actions.put(unitId, randomMove(stateView, unitId)); 
+										completedAction.put(unitId, false); 
 									}
+								}
 								//these signal the dude is available
 								if ((result2 != null && result2.getFeedback() == ActionFeedback.COMPLETED) || result2 == null) { //result2 == null removed bc redundnt BUT now we might end up trapped
 									if (!completedAction.get(unitId)) { //if we completed a random move last turn
@@ -217,7 +215,7 @@ public class PEAgent extends Agent {
 							if (plan.size() > 1)
 								plan.pop();
 							System.out.print("finished the previous move"
-									+ "\nbeginning " + plan.peek());
+									+ "\n beginning " + plan.peek());
 						}
 					}
 				

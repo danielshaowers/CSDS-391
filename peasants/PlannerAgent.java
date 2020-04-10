@@ -101,9 +101,13 @@ public class PlannerAgent extends Agent {
 		while (open.size() != 0) {
 			GameState current = open.poll(); // get the cheapest node
 			//System.out.println("open list size is " + open.size());
-			if (current.isGoal()) // if the goal is found
+			if (current.isGoal()) { // if the goal is found
+				System.out.println("cost to reach goal was " + current.cost);
 				return tracePath(current.camefrom); // helper method that traces actions to reach goal
+			}
 			closed.putIfAbsent(current.hashCode(), current); // add current to closed list
+			//System.out.println("f = " + (current.cost + current.heuristic()) + " cost is " + (current.cost) + " heuristic is " + current.heuristic());
+			System.out.println("gold " + current.currentGold + " wood " + current.currentWood + " units " + current.game.peasants.size());
 			children = current.generateChildren();
 			//System.out.println("CHILDREN GENERATED " + children.size());
 			for (GameState child : children) { //checks if we should add to open list

@@ -254,25 +254,72 @@ public class GameState implements Comparable<GameState> {
 	public double heuristic() { // distance from townhall + time it takes to harvest. definitely not consistent
 		int goldHeld = 0;
 		int woodHeld = 0;
-		int thDist = Integer.MAX_VALUE;
+		int thDist = 0;	
+		int numPeasants = game.peasants.size();
 		for (Peasant p : game.peasants.values()) {
 			if (p.hasResource()) {
-				goldHeld += p.getGold() ;
+				goldHeld += p.getGold();
 				woodHeld += p.getWood();
-				thDist = Math.min(thDist, (int)p.getPosition().euclideanDistance(townhall));
+				thDist = p.getPosition().chebyshevDistance(townhall) - 1;
 			}
 		}
 		int remainingGoldCost = Math.max(0, requiredGold - currentGold - goldHeld);
 		int remainingWoodCost = Math.max(0, requiredWood - currentWood - woodHeld);
-		int numPeasants = game.peasants.size();
-		return (remainingGoldCost + remainingWoodCost) / (numPeasants) +thDist;// - 100 * numPeasants; 
-		/*int heuristic = 0;
+
+		//int ngGoldCost = requiredGold - currentGold - goldHeld;
+		//int remainingWoodCost =  requiredWood - currentWood - woodHeld;
+
+		return (remainingGoldCost + remainingWoodCost) / numPeasants +thDist; //- 10000 * numPeasants;
+
+		
+		//ATTEMPT 2 AT HEURISTIC
+	/*	int heuristic = 0;
 		int goldHeld = 0;
 		int woodHeld = 0;
-		int townhall_resource_dist = Integer.MAX_VALUE;
+		int thDist = 0;	
+		int numPeasants = game.peasants.size();
+		int canBuild = 0;
+		for (Peasant p : game.peasants.values()) {
+			if (p.hasResource()) {
+				goldHeld += p.getGold();
+				woodHeld += p.getWood();
+				thDist = p.getPosition().chebyshevDistance(townhall) - 1;
+			}
+		}
+		int remainingGoldCost = Math.max(0, requiredGold - currentGold - goldHeld);
+		int remainingWoodCost = Math.max(0, requiredWood - currentWood - woodHeld);
+		if (currentGold + goldHeld >= 400)
+			numPeasants = Math.min(3, numPeasants + 1);
+		if (currentGold + goldHeld > woodHeld + currentWood) {
+			 heuristic += 10;
+		}
+		//int ngGoldCost = requiredGold - currentGold - goldHeld;
+		//int remainingWoodCost =  requiredWood - currentWood - woodHeld;
+		int actors = camefrom.getActorIds().length;
+		heuristic += actors * 3;
+		heuristic += (remainingGoldCost + remainingWoodCost) / (100*numPeasants) +thDist - canBuild; //- 10000 * numPeasants;
+		return heuristic;
+		
+		*/
+		
+		
+		
+		/*int goldHeld = 0;
+	
+		
+		
+		
+		
+		int heuristic = 0;
+		int woodHeld = 0;
+		int townhall_gold_dist = Integer.MAX_VALUE;
+		int townhall_wood_dist = Integer.MAX_VALUE;
 		int dist = Integer.MAX_VALUE;
 		for (Resource r: game.resources.values()) {
-			townhall_resource_dist = Math.min(townhall_resource_dist, (int)townhall.chebyshevDistance(new Position(r.x, r.y)) - 2);
+			if (r.isGold)
+				townhall_gold_dist = Math.min(townhall_gold_dist, (int)townhall.chebyshevDistance(new Position(r.x, r.y)) - 2);
+			else
+				townhall_wood_dist = Math.min(townhall_wood_dist, (int)townhall.chebyshevDistance(new Position(r.x, r.y)) - 2);
 		} 
 		for (Peasant p : game.peasants.values()) {
 			if (p.hasResource()) {
@@ -285,22 +332,29 @@ public class GameState implements Comparable<GameState> {
 		int numPeasants = game.peasants.size();
 		int remainingGoldCost = Math.abs(requiredGold - currentGold - goldHeld); //how much is left to harvest
 		int remainingWoodCost = Math.abs(requiredWood - currentWood - woodHeld); //previously max(0,val), which is more admissible but less good
-		int harvest_deposit_cycles = (remainingGoldCost + remainingWoodCost) / (100* numPeasants); //assume we're already next to a resrouce
-		if (goldHeld + woodHeld > 0) { //cost to reach the townhall and deposit
+		double gold_deposit_cycles = (remainingGoldCost) / (100* 2 *numPeasants); //assume we're already next to a resrouce
+		double wood_deposit_cycles = remainingWoodCost / (100 * numPeasants);
+		if (goldHeld > 0) { //cost to reach the townhall and deposit
 			heuristic += Math.max(0, dist) + 1; //cost of reaching the townhall and depositing. now remainingGold corresponds to how much we need to deposit/harvest
-			heuristic += 2 * harvest_deposit_cycles; //cost of depositing and harvesting
-			heuristic += harvest_deposit_cycles * 2 * townhall_resource_dist; //cost of going back and forth from th to resource (we are at th rn)
+			heuristic += 2 * gold_deposit_cycles; //cost of depositing and harvesting
+			heuristic += gold_deposit_cycles * 2 * townhall_gold_dist; //cost of going back and forth from th to resource (we are at th rn)
 		}
 		else {
-			if (camefrom instanceof deposit || camefrom instanceof deposit2 || camefrom instanceof deposit2) {
-				heuristic += townhall_resource_dist; //cost to reach the nearest resource. if previously deposit, we know from postconditions that we're still adj to resource
+			if (woodHeld > 0) {
+				heuristic += Math.max(0,  dist) + 1;
+				heuristic += 2 * wood_deposit_cycles;
+				heuristic += wood_deposit_cycles * 2 * townhall_gold_dist;
 			}
-			heuristic += (harvest_deposit_cycles - 1) * townhall_resource_dist; 
+		
+			else { //this means we're not holding anything
+				if (camefrom instanceof deposit || camefrom instanceof deposit2 || camefrom instanceof deposit2) {
+					heuristic += Math.min(townhall_gold_dist, townhall_wood_dist); //cost to reach the nearest resource. if previously deposit, we know from postconditions that we're still adj to resource
+				}
+				heuristic += (wood_deposit_cycles - 1) * 2 * townhall_wood_dist; //how many times we need to deposit
+				heuristic += (gold_deposit_cycles - 1) * 2 * townhall_gold_dist;
+			}
 		}
-		return heuristic; */
-		//int collectionCost = 2 * (remainingGoldCost + remainingWoodCost) / (100 * numPeasants); //*2 bc harvest+deposit
-		//int depositCost = (woodHeld + goldHeld > 0 ? 1 : 0); //if I were I g I would distinguish held or not and find nearest resource vs townhall Dist
-		//return collectionCost + depositCost + dist * (collectionCost - depositCost); //- 1000 * numPeasants; 		
+		return heuristic;*/
 	}
 
 	/**
@@ -333,12 +387,7 @@ public class GameState implements Comparable<GameState> {
 			return -1;
 		return 0;
 
-		/*if(this.heuristic() > o.heuristic()){
-			return 1;
-		} else if(this.heuristic() < o.heuristic()){
-			return -1;
-		}*/
-		//return 0;
+		
 	}
 
 	/**
@@ -368,15 +417,15 @@ public class GameState implements Comparable<GameState> {
 		int heldWood = 0;
 		int heldGold = 0;
 		for (Peasant p : game.peasants.values()) {
-			//heldWood += p.getGold();
-			//heldGold += p.getWood();
+			heldWood += p.getGold();
+			heldGold += p.getWood();
 			hash *= 31 + p.getPosition().hashCode();
-			hash = hash * 31 + p.getGold();
+			/*hash = hash * 31 + p.getGold();
 			hash = hash * 31 + p.getWood();
-			//hash = hash * 31 + p.getPosition().hashCode();*/
+			hash = hash * 31 + p.getPosition().hashCode();*/
 		}
-		//hash = hash * 31 + heldWood;
-		//hash = hash * 31 + heldGold;
+		hash = hash * 31 + heldWood;
+		hash = hash * 31 + heldGold;
 		hash = hash * 31 + currentGold;
 		hash = hash * 31 + currentWood;
 		return hash;
